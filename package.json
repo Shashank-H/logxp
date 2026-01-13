@@ -1,0 +1,22 @@
+{
+  "name": "logxp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "logxp": "./src/cli.tsx"
+  },
+  "scripts": {
+    "cli": "bun run src/cli.tsx",
+    "dev": "bun --hot src/cli.tsx",
+    "start": "bun run src/cli.tsx"
+  },
+  "dependencies": {
+    "ink": "^6.6.0",
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/bun": "latest"
+  }
+}
