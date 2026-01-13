@@ -13,6 +13,9 @@ A CLI application built with Bun and Ink.
 - You must use bun for running the application
 - You must update the docs folder whenever makes sense.
 
+## Limitations
+- you may not be able to test the application properly as it requires a terminal to run in interactive mode.
+
 ### CLI Development with Bun + Ink
 
 1. **Stdin Detection**
