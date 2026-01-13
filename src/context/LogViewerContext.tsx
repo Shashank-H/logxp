@@ -27,6 +27,7 @@ const INITIAL_STATE: LogViewerState = {
   sortBy: 'default',
   isStreaming: true,
   isPaused: false,
+  selectedLogIndex: null,
 };
 
 function logViewerReducer(
@@ -43,11 +44,18 @@ function logViewerReducer(
         scrollOffset = Math.max(0, newLogs.length - state.viewportHeight);
       }
 
+      // Auto-select first log if no selection exists and we have logs
+      let selectedLogIndex = state.selectedLogIndex;
+      if (selectedLogIndex === null && newLogs.length > 0) {
+        selectedLogIndex = scrollOffset;
+      }
+
       return {
         ...state,
         logs: newLogs,
         totalReceived,
         scrollOffset,
+        selectedLogIndex,
       };
     }
 
@@ -94,7 +102,7 @@ function logViewerReducer(
             : state.currentMatchIndex - 1;
       }
 
-      const matchLogIndex = state.searchMatches[newIndex];
+      const matchLogIndex = state.searchMatches[newIndex] ?? 0;
       return {
         ...state,
         currentMatchIndex: newIndex,
@@ -167,6 +175,9 @@ function logViewerReducer(
 
     case 'TOGGLE_PAUSE':
       return { ...state, isPaused: !state.isPaused, followMode: false };
+
+    case 'SELECT_LOG':
+      return { ...state, selectedLogIndex: action.payload };
 
     default:
       return state;

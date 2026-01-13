@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Box, Text, useStdout } from 'ink';
-import { LogList } from '../log-display/LogList';
+import { LogTable } from '../log-display/LogTable';
+import { LogDetailSidebar } from '../log-display/LogDetailSidebar';
 import { StatusBar } from './StatusBar';
 import { useLogViewer } from '../../context/LogViewerContext';
 
@@ -25,6 +26,15 @@ export function LogViewerLayout({
     const viewportHeight = Math.max(5, height - 6);
     dispatch({ type: 'SET_VIEWPORT_HEIGHT', payload: viewportHeight });
   }, [stdout?.rows, dispatch]);
+
+  const handleSelect = (index: number) => {
+    dispatch({ type: 'SELECT_LOG', payload: index });
+  };
+
+  const selectedLog =
+    state.selectedLogIndex !== null
+      ? filteredLogs[state.selectedLogIndex] ?? null
+      : null;
 
   return (
     <Box flexDirection="column" height="100%">
@@ -51,15 +61,20 @@ export function LogViewerLayout({
         </Box>
       )}
 
-      {/* Main log display area */}
-      <Box flexGrow={1} flexDirection="column" overflow="hidden">
-        <LogList
-          logs={visibleLogs}
-          searchTerm={state.searchTerm}
-          searchMatches={state.searchMatches}
-          currentMatchIndex={state.currentMatchIndex}
-          scrollOffset={state.scrollOffset}
-        />
+      {/* Main log display area - split layout */}
+      <Box flexGrow={1} flexDirection="row" overflow="hidden">
+        {/* Left side: Table */}
+        <Box flexGrow={1} flexDirection="column">
+          <LogTable
+            logs={visibleLogs}
+            selectedIndex={state.selectedLogIndex}
+            scrollOffset={state.scrollOffset}
+            onSelect={handleSelect}
+          />
+        </Box>
+
+        {/* Right side: Detail Sidebar */}
+        <LogDetailSidebar log={selectedLog} width={60} />
       </Box>
 
       {/* Command bar slot */}

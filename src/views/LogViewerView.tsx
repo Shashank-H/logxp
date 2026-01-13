@@ -35,32 +35,43 @@ function KeyboardHandler() {
     }
 
     if (key.upArrow || input === 'k') {
+      const newOffset = Math.max(0, state.scrollOffset - 1);
       dispatch({ type: 'SCROLL', payload: -1 });
+      dispatch({ type: 'SELECT_LOG', payload: newOffset });
       return;
     }
 
     if (key.downArrow || input === 'j') {
+      const newOffset = state.scrollOffset + 1;
       dispatch({ type: 'SCROLL', payload: 1 });
+      dispatch({ type: 'SELECT_LOG', payload: newOffset });
       return;
     }
 
     if (key.pageUp) {
+      const newOffset = Math.max(0, state.scrollOffset - state.viewportHeight);
       dispatch({ type: 'SCROLL', payload: -state.viewportHeight });
+      dispatch({ type: 'SELECT_LOG', payload: newOffset });
       return;
     }
 
     if (key.pageDown) {
+      const newOffset = state.scrollOffset + state.viewportHeight;
       dispatch({ type: 'SCROLL', payload: state.viewportHeight });
+      dispatch({ type: 'SELECT_LOG', payload: newOffset });
       return;
     }
 
     if (input === 'g') {
       dispatch({ type: 'SCROLL_TO', payload: 'top' });
+      dispatch({ type: 'SELECT_LOG', payload: 0 });
       return;
     }
 
     if (input === 'G') {
+      const bottomOffset = Math.max(0, state.logs.length - state.viewportHeight);
       dispatch({ type: 'SCROLL_TO', payload: 'bottom' });
+      dispatch({ type: 'SELECT_LOG', payload: bottomOffset });
       return;
     }
 
