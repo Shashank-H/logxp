@@ -2,6 +2,10 @@
 
 A CLI application built with Bun and Ink.
 
+## Must Follow
+- use .agents to make notes, todos, save requirements etc anything that can provide any future context to different agents
+- look at .agents folder to get an idea of what can be done or what is being done.
+
 ## Best Practices
 - You must create different files and folders for different components and views 
 - You must follow standards as per react when creating components and views 
