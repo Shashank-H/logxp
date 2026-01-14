@@ -20,7 +20,7 @@ export function HelpOverlay({ onClose }: HelpOverlayProps) {
       items: [
         { key: 'Ctrl+H', desc: 'Toggle this help screen' },
         { key: 'q', desc: 'Quit application' },
-        { key: 'ESC', desc: 'Clear search filter (or quit if no search)' },
+        { key: 'ESC', desc: 'Go back to home (or clear search if active)' },
         { key: '/', desc: 'Open command palette' },
         { key: 'Tab', desc: 'Switch focus between logs and details pane' },
         { key: 'Space', desc: 'Toggle follow mode (auto-scroll to new logs)' },

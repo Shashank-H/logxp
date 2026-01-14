@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { LogViewerProvider } from '../context/LogViewerContext';
 import { LogViewerView } from './LogViewerView';
@@ -76,10 +76,15 @@ export function InteractivePrompt() {
     }
   });
 
+  const handleBack = useCallback(() => {
+    setStarted(false);
+    setCommand('');
+  }, []);
+
   if (started) {
     return (
       <LogViewerProvider>
-        <LogViewerView isPiped={false} command={command} />
+        <LogViewerView isPiped={false} command={command} onBack={handleBack} />
       </LogViewerProvider>
     );
   }
