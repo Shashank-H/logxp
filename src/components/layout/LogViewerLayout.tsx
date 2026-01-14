@@ -1,9 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { LogTable } from '../log-display/LogTable';
 import { LogDetailSidebar } from '../log-display/LogDetailSidebar';
 import { StatusBar } from './StatusBar';
 import { useLogViewer } from '../../context/LogViewerContext';
+
+// Debounce delay for showing log details (ms)
+const DETAIL_DEBOUNCE_MS = 200;
 
 interface LogViewerLayoutProps {
   children?: React.ReactNode;
@@ -19,7 +22,7 @@ export function LogViewerLayout({
   showPipedWarning = false,
 }: LogViewerLayoutProps) {
   const { stdout } = useStdout();
-  const { state, dispatch, filteredLogs, visibleLogs } = useLogViewer();
+  const { state, dispatch, filteredCount, visibleLogs, getLogByIndex } = useLogViewer();
 
   useEffect(() => {
     const height = stdout?.rows || 24;
@@ -33,9 +36,32 @@ export function LogViewerLayout({
     dispatch({ type: 'SELECT_LOG', payload: index });
   };
 
+  // Debounce the selected log index for detail panel
+  const [debouncedIndex, setDebouncedIndex] = useState<number | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Clear any pending debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Set new debounced value after delay
+    debounceRef.current = setTimeout(() => {
+      setDebouncedIndex(state.selectedLogIndex);
+    }, DETAIL_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [state.selectedLogIndex]);
+
+  // Only fetch log details for debounced index
   const selectedLog =
-    state.selectedLogIndex !== null
-      ? filteredLogs[state.selectedLogIndex] ?? null
+    debouncedIndex !== null
+      ? getLogByIndex(debouncedIndex)
       : null;
 
   return (
@@ -106,8 +132,8 @@ export function LogViewerLayout({
 
       {/* Status bar */}
       <StatusBar
-        totalLogs={state.logs.length}
-        filteredCount={filteredLogs.length}
+        totalLogs={state.totalLogs}
+        filteredCount={filteredCount}
         activeFilters={state.activeFilters}
         followMode={state.followMode}
         scrollOffset={state.scrollOffset}

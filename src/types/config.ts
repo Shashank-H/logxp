@@ -1,4 +1,4 @@
-import type { LogLevel } from './log';
+import type { LogLevel } from "./log";
 
 export interface ColorConfig {
   error: string;

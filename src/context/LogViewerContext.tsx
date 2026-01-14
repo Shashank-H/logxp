@@ -5,16 +5,18 @@ import React, {
   useMemo,
   useCallback,
   useRef,
+  useEffect,
 } from 'react';
 import type { LogEntry, LogLevel } from '../types/log';
 import type { LogViewerState, LogViewerAction, Filter } from '../types/state';
-import { CircularBuffer } from '../core/buffer';
+import { LogDatabase } from '../core/database';
 import { DEFAULT_CONFIG } from '../config/defaults';
 import { LOG_LEVEL_PRIORITY } from '../types/log';
 
 const INITIAL_STATE: LogViewerState = {
-  logs: [],
+  logs: [], // Kept for compatibility but will be empty
   totalReceived: 0,
+  totalLogs: 0, // New: track total logs in DB
   activeFilters: [],
   searchTerm: null,
   searchMatches: [],
@@ -39,18 +41,19 @@ function logViewerReducer(
 ): LogViewerState {
   switch (action.type) {
     case 'ADD_LOGS': {
-      const newLogs = [...state.logs, ...action.payload];
+      // Logs are now in DB, just update counters
       const totalReceived = state.totalReceived + action.payload.length;
+      const totalLogs = state.totalLogs + action.payload.length;
 
       let scrollOffset = state.scrollOffset;
       if (state.followMode && !state.isPaused) {
-        scrollOffset = Math.max(0, newLogs.length - state.viewportHeight);
+        scrollOffset = Math.max(0, totalLogs - state.viewportHeight);
       }
 
       return {
         ...state,
-        logs: newLogs,
         totalReceived,
+        totalLogs,
         scrollOffset,
       };
     }
@@ -131,7 +134,7 @@ function logViewerReducer(
       }
       return {
         ...state,
-        scrollOffset: Math.max(0, state.logs.length - state.viewportHeight),
+        scrollOffset: Math.max(0, state.totalLogs - state.viewportHeight),
         followMode: true,
       };
 
@@ -171,7 +174,7 @@ function logViewerReducer(
     case 'CLEAR_LOGS':
       return {
         ...state,
-        logs: [],
+        totalLogs: 0,
         scrollOffset: 0,
         searchMatches: [],
         currentMatchIndex: -1,
@@ -218,9 +221,11 @@ function logViewerReducer(
 interface LogViewerContextValue {
   state: LogViewerState;
   dispatch: React.Dispatch<LogViewerAction>;
-  filteredLogs: LogEntry[];
+  filteredCount: number;
   visibleLogs: LogEntry[];
+  getLogByIndex: (index: number) => LogEntry | null;
   addLogs: (logs: LogEntry[]) => void;
+  clearLogs: () => void;
 }
 
 const LogViewerContext = createContext<LogViewerContextValue | null>(null);
@@ -235,59 +240,79 @@ export function LogViewerProvider({
   bufferSize = DEFAULT_CONFIG.defaults.bufferSize,
 }: LogViewerProviderProps) {
   const [state, dispatch] = useReducer(logViewerReducer, INITIAL_STATE);
-  const bufferRef = useRef(new CircularBuffer<LogEntry>(bufferSize));
+  const dbRef = useRef<LogDatabase | null>(null);
+
+  // Initialize database
+  useEffect(() => {
+    dbRef.current = new LogDatabase();
+    
+    return () => {
+      // Cleanup database on unmount
+      if (dbRef.current) {
+        dbRef.current.close();
+        dbRef.current = null;
+      }
+    };
+  }, []);
 
   const addLogs = useCallback((logs: LogEntry[]) => {
-    const buffer = bufferRef.current;
-    buffer.pushMany(logs);
+    const db = dbRef.current;
+    if (!db) return;
+    
+    // Insert logs into database
+    db.insertLogs(logs);
+    
+    // Update state counters
     dispatch({ type: 'ADD_LOGS', payload: logs });
   }, []);
 
-  const filteredLogs = useMemo(() => {
-    let logs = state.logs;
+  const clearLogs = useCallback(() => {
+    const db = dbRef.current;
+    if (!db) return;
+    
+    // Clear database
+    db.clear();
+    
+    // Update state
+    dispatch({ type: 'CLEAR_LOGS' });
+  }, []);
 
-    if (state.activeFilters.length > 0) {
-      logs = logs.filter((log) => {
-        return state.activeFilters.every((filter) => {
-          if (filter.type === 'level') {
-            return log.level === filter.levelValue;
-          }
-          const searchText = (log.raw + (log.message || '')).toLowerCase();
-          return searchText.includes(filter.value.toLowerCase());
-        });
-      });
-    }
+  // Get filtered count efficiently without fetching all logs
+  const filteredCount = useMemo(() => {
+    const db = dbRef.current;
+    if (!db) return 0;
 
-    if (state.sortBy === 'timestamp') {
-      logs = [...logs].sort((a, b) => {
-        const aTime = a.timestamp?.getTime() || 0;
-        const bTime = b.timestamp?.getTime() || 0;
-        return aTime - bTime;
-      });
-    } else if (state.sortBy === 'level') {
-      logs = [...logs].sort((a, b) => {
-        return LOG_LEVEL_PRIORITY[a.level] - LOG_LEVEL_PRIORITY[b.level];
-      });
-    }
+    return db.getLogCount(
+      state.activeFilters.length > 0 ? state.activeFilters : undefined
+    );
+  }, [state.totalLogs, state.activeFilters]);
 
-    return logs;
-  }, [state.logs, state.activeFilters, state.sortBy]);
+  // Get single selected log by index (not all logs)
+  const getLogByIndex = useCallback((index: number): LogEntry | null => {
+    const db = dbRef.current;
+    if (!db || index < 0) return null;
 
+    const logs = db.getLogs(
+      index,
+      1,
+      state.activeFilters.length > 0 ? state.activeFilters : undefined,
+      state.sortBy !== 'default' ? state.sortBy : undefined
+    );
+    return logs[0] || null;
+  }, [state.activeFilters, state.sortBy]);
+
+  // Only compute search matches when search term changes (not on every scroll)
   const searchMatchesComputed = useMemo(() => {
     if (!state.searchTerm) return [];
 
-    const matches: number[] = [];
-    const term = state.searchTerm.toLowerCase();
+    const db = dbRef.current;
+    if (!db) return [];
 
-    filteredLogs.forEach((log, index) => {
-      const searchText = (log.raw + (log.message || '')).toLowerCase();
-      if (searchText.includes(term)) {
-        matches.push(index);
-      }
-    });
-
-    return matches;
-  }, [filteredLogs, state.searchTerm]);
+    return db.searchLogs(
+      state.searchTerm,
+      state.activeFilters.length > 0 ? state.activeFilters : undefined
+    );
+  }, [state.searchTerm, state.activeFilters]);
 
   const stateWithMatches = useMemo(() => {
     return {
@@ -297,20 +322,31 @@ export function LogViewerProvider({
   }, [state, searchMatchesComputed]);
 
   const visibleLogs = useMemo(() => {
+    const db = dbRef.current;
+    if (!db) return [];
+
     const start = Math.max(0, state.scrollOffset);
-    const end = start + state.viewportHeight;
-    return filteredLogs.slice(start, end);
-  }, [filteredLogs, state.scrollOffset, state.viewportHeight]);
+    
+    // Query only the visible logs with pagination
+    return db.getLogs(
+      start,
+      state.viewportHeight,
+      state.activeFilters.length > 0 ? state.activeFilters : undefined,
+      state.sortBy !== 'default' ? state.sortBy : undefined
+    );
+  }, [state.scrollOffset, state.viewportHeight, state.activeFilters, state.sortBy, state.totalLogs]);
 
   const value = useMemo(
     () => ({
       state: stateWithMatches,
       dispatch,
-      filteredLogs,
+      filteredCount,
       visibleLogs,
+      getLogByIndex,
       addLogs,
+      clearLogs,
     }),
-    [stateWithMatches, filteredLogs, visibleLogs, addLogs]
+    [stateWithMatches, filteredCount, visibleLogs, getLogByIndex, addLogs, clearLogs]
   );
 
   return (

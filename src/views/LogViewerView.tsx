@@ -14,18 +14,18 @@ interface LogViewerViewProps {
 
 // Separate component for keyboard input to avoid useInput when raw mode not supported
 function KeyboardHandler() {
-  const { state, dispatch, filteredLogs } = useLogViewer();
+  const { state, dispatch, filteredCount } = useLogViewer();
   const { exit } = useApp();
 
   // Use refs to avoid stale closure issues in useInput
   const stateRef = useRef(state);
   stateRef.current = state;
-  const filteredLogsRef = useRef(filteredLogs);
-  filteredLogsRef.current = filteredLogs;
+  const filteredCountRef = useRef(filteredCount);
+  filteredCountRef.current = filteredCount;
 
   useInput((input, key) => {
     const currentState = stateRef.current;
-    const logs = filteredLogsRef.current;
+    const logCount = filteredCountRef.current;
 
     // Ctrl+H toggles help (works even in command mode)
     if (key.ctrl && input === 'h') {
@@ -92,7 +92,7 @@ function KeyboardHandler() {
       // If no selection, start at bottom of visible area
       const visibleBottom = Math.min(
         currentState.scrollOffset + currentState.viewportHeight - 1,
-        logs.length - 1
+        logCount - 1
       );
       const currentIndex = currentState.selectedLogIndex ?? visibleBottom;
 
@@ -124,7 +124,7 @@ function KeyboardHandler() {
         return;
       }
 
-      const maxIndex = logs.length - 1;
+      const maxIndex = logCount - 1;
       const newIndex = Math.min(maxIndex, currentIndex + 1);
       dispatch({ type: 'SELECT_LOG', payload: newIndex });
       // Only scroll if selection goes below visible area
@@ -150,7 +150,7 @@ function KeyboardHandler() {
 
     if (key.pageDown) {
       const currentIndex = currentState.selectedLogIndex ?? currentState.scrollOffset;
-      const maxIndex = logs.length - 1;
+      const maxIndex = logCount - 1;
       const newIndex = Math.min(maxIndex, currentIndex + currentState.viewportHeight);
       dispatch({ type: 'SELECT_LOG', payload: newIndex });
       // Scroll to keep selection visible
@@ -169,7 +169,7 @@ function KeyboardHandler() {
     }
 
     if (input === 'G') {
-      const lastIndex = logs.length - 1;
+      const lastIndex = logCount - 1;
       dispatch({ type: 'SELECT_LOG', payload: lastIndex });
       dispatch({ type: 'SCROLL_TO', payload: 'bottom' });
       return;
@@ -223,7 +223,7 @@ export function LogViewerView({ isPiped, command }: LogViewerViewProps) {
   }, [dispatch]);
 
   // Show error if command failed
-  if (error && !isRunning && state.logs.length === 0) {
+  if (error && !isRunning && state.totalLogs === 0) {
     return (
       <Box flexDirection="column" padding={1}>
         <Text color="red" bold>
@@ -236,7 +236,7 @@ export function LogViewerView({ isPiped, command }: LogViewerViewProps) {
   }
 
   // Show limited mode warning when raw mode is not available
-  const showLimitedWarning = !isRawModeSupported && state.logs.length === 0;
+  const showLimitedWarning = !isRawModeSupported && state.totalLogs === 0;
 
   // Show help overlay when active
   if (state.showHelp) {

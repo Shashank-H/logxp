@@ -11,6 +11,7 @@ export type FocusedPane = "logs" | "details";
 export interface LogViewerState {
   logs: LogEntry[];
   totalReceived: number;
+  totalLogs: number; // Total logs in database
 
   activeFilters: Filter[];
 
