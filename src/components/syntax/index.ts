@@ -1,0 +1,1 @@
+export { JsonHighlighter } from './JsonHighlighter';

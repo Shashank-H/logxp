@@ -1,29 +1,74 @@
 #!/usr/bin/env bun
-import { render } from "ink";
-import { useStdinReader } from "./hooks/useStdinReader";
-import { PipedInputView } from "./views/PipedInputView";
-import { InteractiveView } from "./views/InteractiveView";
+import { render, Box, Text } from 'ink';
+import { LogViewerProvider } from './context/LogViewerContext';
+import { LogViewerView } from './views/LogViewerView';
+import { InteractivePrompt } from './views/InteractivePrompt';
+import { shellHistory } from './core/history';
 
-const isPiped = !process.stdin.isTTY;
+// Parse command line arguments
+const args = process.argv.slice(2);
+const commandArg = args.join(' ').trim();
 
-function CliApp() {
-    const { inputData, isReading, totalBytes } = useStdinReader(isPiped);
-
-    if (isPiped) {
-        return (
-            <PipedInputView 
-                isReading={isReading}
-                inputData={inputData}
-                totalBytes={totalBytes}
-            />
-        );
-    }
-
-    return <InteractiveView />;
+// Save CLI command to history
+if (commandArg) {
+  shellHistory.add(commandArg);
 }
 
-render(<CliApp />, {
-    stdout: process.stdout,
-    stdin: process.stdin,
-    patchConsole: false,
+// Check if stdin is piped
+const isPiped = !process.stdin.isTTY;
+
+// Determine mode:
+// 1. If command argument provided -> command mode (spawn command, full interactivity)
+// 2. If stdin is piped and no command -> piped mode (read stdin, limited interactivity)
+// 3. If interactive terminal and no command -> prompt mode (ask for command)
+const mode = commandArg ? 'command' : isPiped ? 'piped' : 'prompt';
+
+// Enter alternate screen buffer (like vim, nano, htop)
+// This hides the command prompt and previous terminal content
+if (!isPiped) {
+  process.stdout.write('\x1b[?1049h'); // Enter alternate screen buffer
+  process.stdout.write('\x1b[2J');     // Clear screen
+  process.stdout.write('\x1b[H');      // Move cursor to top-left
+}
+
+// Restore terminal on exit
+function cleanup() {
+  if (!isPiped) {
+    process.stdout.write('\x1b[?1049l'); // Exit alternate screen buffer
+  }
+}
+
+process.on('exit', cleanup);
+process.on('SIGINT', () => {
+  cleanup();
+  process.exit(0);
 });
+process.on('SIGTERM', () => {
+  cleanup();
+  process.exit(0);
+});
+
+function App() {
+  if (mode === 'piped') {
+    // Legacy piped mode - limited functionality
+    return (
+      <LogViewerProvider>
+        <LogViewerView isPiped={true} command={null} />
+      </LogViewerProvider>
+    );
+  }
+
+  if (mode === 'command') {
+    // Command provided as argument - full interactivity
+    return (
+      <LogViewerProvider>
+        <LogViewerView isPiped={false} command={commandArg} />
+      </LogViewerProvider>
+    );
+  }
+
+  // Prompt mode - ask for command
+  return <InteractivePrompt />;
+}
+
+render(<App />, { fullScreen: true });

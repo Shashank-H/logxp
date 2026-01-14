@@ -1,0 +1,90 @@
+# LogXP Configuration Example
+# Copy this file to .logxp.yaml in your project or ~/.config/logxp/config.yaml
+
+# Color scheme for log levels
+colors:
+  error: red
+  warn: yellow
+  info: blue
+  debug: gray
+  trace: gray
+  unknown: white
+  json:
+    key: cyan
+    string: green
+    number: magenta
+    boolean: yellow
+    null: gray
+    bracket: white
+
+# Keywords for plain text log level detection
+patterns:
+  error:
+    - error
+    - fatal
+    - exception
+    - panic
+    - fail
+  warn:
+    - warn
+    - warning
+    - caution
+  info:
+    - info
+    - information
+  debug:
+    - debug
+  trace:
+    - trace
+    - verbose
+
+# JSON field names to search for log metadata
+jsonFields:
+  level:
+    - level
+    - severity
+    - loglevel
+    - log_level
+    - lvl
+  message:
+    - message
+    - msg
+    - text
+    - content
+    - body
+  timestamp:
+    - timestamp
+    - time
+    - ts
+    - datetime
+    - date
+    - "@timestamp"
+
+# Default settings
+defaults:
+  followMode: true
+  bufferSize: 10000
+
+# Keyboard bindings
+keybindings:
+  quit:
+    - q
+    - escape
+  command:
+    - /
+  toggleFollow:
+    - " "
+  scrollUp:
+    - up
+    - k
+  scrollDown:
+    - down
+    - j
+  pageUp:
+    - pageup
+  pageDown:
+    - pagedown
+  home:
+    - home
+  end:
+    - end
