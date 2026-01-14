@@ -191,6 +191,11 @@ export class LogDatabase {
         if (filter.type === "level") {
           whereClauses.push("level = ?");
           params.push(filter.levelValue);
+        } else if (filter.type === "search") {
+          // Search filter - search in raw and message
+          whereClauses.push("(LOWER(raw) LIKE ? OR LOWER(message) LIKE ?)");
+          const searchTerm = `%${filter.value.toLowerCase()}%`;
+          params.push(searchTerm, searchTerm);
         } else {
           // Text filter - search in raw and message
           whereClauses.push("(LOWER(raw) LIKE ? OR LOWER(message) LIKE ?)");

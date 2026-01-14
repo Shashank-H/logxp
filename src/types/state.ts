@@ -1,7 +1,7 @@
 import type { LogEntry, LogLevel } from "./log";
 
 export interface Filter {
-  type: "keyword" | "level";
+  type: "keyword" | "level" | "search";
   value: string;
   levelValue?: LogLevel;
 }

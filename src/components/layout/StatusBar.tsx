@@ -57,7 +57,7 @@ export function StatusBar({
         )}
         {hasSearch && (
           <Text color="cyan">
-            [SEARCH: "{searchTerm}" {currentMatchIndex + 1}/{searchMatches.length}]{' '}
+            [FILTER: "{searchTerm}" ({filteredCount} {filteredCount === 1 ? 'match' : 'matches'}) - Press ESC to clear]{' '}
           </Text>
         )}
         <Text color="white">

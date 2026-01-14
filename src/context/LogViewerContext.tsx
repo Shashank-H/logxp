@@ -74,17 +74,32 @@ function logViewerReducer(
 
     case 'SET_SEARCH': {
       if (action.payload === null) {
+        // Remove any existing search filters
+        const newFilters = state.activeFilters.filter(f => f.type !== 'search');
         return {
           ...state,
           searchTerm: null,
           searchMatches: [],
           currentMatchIndex: -1,
+          activeFilters: newFilters,
+          scrollOffset: 0,
+          selectedLogIndex: null,
         };
       }
+      
+      // Remove any existing search filters and add new one
+      const newFilters = state.activeFilters.filter(f => f.type !== 'search');
+      newFilters.push({ type: 'search', value: action.payload });
+      
       return {
         ...state,
         searchTerm: action.payload,
         currentMatchIndex: -1,
+        activeFilters: newFilters,
+        scrollOffset: 0,
+        // Auto-select first filtered log
+        selectedLogIndex: 0,
+        followMode: false,
       };
     }
 
@@ -113,13 +128,20 @@ function logViewerReducer(
       };
     }
 
-    case 'CLEAR_SEARCH':
+    case 'CLEAR_SEARCH': {
+      // Remove any search filters
+      const newFilters = state.activeFilters.filter(f => f.type !== 'search');
       return {
         ...state,
         searchTerm: null,
         searchMatches: [],
         currentMatchIndex: -1,
+        activeFilters: newFilters,
+        scrollOffset: 0,
+        // Reset selection to first log
+        selectedLogIndex: 0,
       };
+    }
 
     case 'SCROLL':
       return {
@@ -305,14 +327,10 @@ export function LogViewerProvider({
   const searchMatchesComputed = useMemo(() => {
     if (!state.searchTerm) return [];
 
-    const db = dbRef.current;
-    if (!db) return [];
-
-    return db.searchLogs(
-      state.searchTerm,
-      state.activeFilters.length > 0 ? state.activeFilters : undefined
-    );
-  }, [state.searchTerm, state.activeFilters]);
+    // Since search is now a filter, all filtered logs are matches
+    // Return array of indices [0, 1, 2, ..., filteredCount-1]
+    return Array.from({ length: filteredCount }, (_, i) => i);
+  }, [state.searchTerm, filteredCount]);
 
   const stateWithMatches = useMemo(() => {
     return {

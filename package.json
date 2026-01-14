@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "ink": "^6.6.0",
-    "react": "^19"
+    "react": "^19",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/bun": "latest",

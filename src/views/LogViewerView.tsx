@@ -38,7 +38,17 @@ function KeyboardHandler() {
 
     if (currentState.commandMode) return;
 
-    if (input === 'q' || key.escape) {
+    // ESC clears search if active, otherwise exits
+    if (key.escape) {
+      if (currentState.searchTerm) {
+        dispatch({ type: 'CLEAR_SEARCH' });
+        return;
+      }
+      exit();
+      return;
+    }
+
+    if (input === 'q') {
       exit();
       return;
     }

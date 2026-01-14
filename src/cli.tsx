@@ -3,10 +3,16 @@ import { render, Box, Text } from 'ink';
 import { LogViewerProvider } from './context/LogViewerContext';
 import { LogViewerView } from './views/LogViewerView';
 import { InteractivePrompt } from './views/InteractivePrompt';
+import { shellHistory } from './core/history';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
 const commandArg = args.join(' ').trim();
+
+// Save CLI command to history
+if (commandArg) {
+  shellHistory.add(commandArg);
+}
 
 // Check if stdin is piped
 const isPiped = !process.stdin.isTTY;
