@@ -9,7 +9,9 @@
   "scripts": {
     "cli": "bun run src/cli.tsx",
     "dev": "bun --hot src/cli.tsx",
-    "start": "bun run src/cli.tsx"
+    "start": "bun run src/cli.tsx",
+    "build": "./build.sh",
+    "release": "./build.sh --release"
   },
   "dependencies": {
     "ink": "^6.6.0",
