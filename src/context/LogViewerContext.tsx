@@ -28,6 +28,8 @@ const INITIAL_STATE: LogViewerState = {
   isStreaming: true,
   isPaused: false,
   selectedLogIndex: null,
+  focusedPane: 'logs',
+  detailScrollOffset: 0,
 };
 
 function logViewerReducer(
@@ -44,18 +46,11 @@ function logViewerReducer(
         scrollOffset = Math.max(0, newLogs.length - state.viewportHeight);
       }
 
-      // Auto-select first log if no selection exists and we have logs
-      let selectedLogIndex = state.selectedLogIndex;
-      if (selectedLogIndex === null && newLogs.length > 0) {
-        selectedLogIndex = scrollOffset;
-      }
-
       return {
         ...state,
         logs: newLogs,
         totalReceived,
         scrollOffset,
-        selectedLogIndex,
       };
     }
 
@@ -142,11 +137,25 @@ function logViewerReducer(
     case 'SET_VIEWPORT_HEIGHT':
       return { ...state, viewportHeight: action.payload };
 
-    case 'TOGGLE_FOLLOW':
-      return { ...state, followMode: !state.followMode, isPaused: false };
+    case 'TOGGLE_FOLLOW': {
+      const newFollowMode = !state.followMode;
+      return {
+        ...state,
+        followMode: newFollowMode,
+        isPaused: false,
+        // Clear selection when entering follow mode
+        selectedLogIndex: newFollowMode ? null : state.selectedLogIndex,
+      };
+    }
 
     case 'SET_FOLLOW':
-      return { ...state, followMode: action.payload, isPaused: false };
+      return {
+        ...state,
+        followMode: action.payload,
+        isPaused: false,
+        // Clear selection when entering follow mode
+        selectedLogIndex: action.payload ? null : state.selectedLogIndex,
+      };
 
     case 'SET_COMMAND_MODE':
       return {
@@ -177,7 +186,22 @@ function logViewerReducer(
       return { ...state, isPaused: !state.isPaused, followMode: false };
 
     case 'SELECT_LOG':
-      return { ...state, selectedLogIndex: action.payload };
+      return { ...state, selectedLogIndex: action.payload, detailScrollOffset: 0 };
+
+    case 'TOGGLE_FOCUS':
+      return {
+        ...state,
+        focusedPane: state.focusedPane === 'logs' ? 'details' : 'logs',
+      };
+
+    case 'SET_FOCUS':
+      return { ...state, focusedPane: action.payload };
+
+    case 'SCROLL_DETAIL':
+      return {
+        ...state,
+        detailScrollOffset: Math.max(0, state.detailScrollOffset + action.payload),
+      };
 
     default:
       return state;

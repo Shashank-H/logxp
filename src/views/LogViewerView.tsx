@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useInput, useApp, useStdin, Box, Text } from 'ink';
 import { LogViewerLayout } from '../components/layout/LogViewerLayout';
 import { CommandBar } from '../components/command/CommandBar';
@@ -13,11 +13,20 @@ interface LogViewerViewProps {
 
 // Separate component for keyboard input to avoid useInput when raw mode not supported
 function KeyboardHandler() {
-  const { state, dispatch } = useLogViewer();
+  const { state, dispatch, filteredLogs } = useLogViewer();
   const { exit } = useApp();
 
+  // Use refs to avoid stale closure issues in useInput
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const filteredLogsRef = useRef(filteredLogs);
+  filteredLogsRef.current = filteredLogs;
+
   useInput((input, key) => {
-    if (state.commandMode) return;
+    const currentState = stateRef.current;
+    const logs = filteredLogsRef.current;
+
+    if (currentState.commandMode) return;
 
     if (input === 'q' || key.escape) {
       exit();
@@ -29,36 +38,111 @@ function KeyboardHandler() {
       return;
     }
 
+    // Tab to switch focus between logs and details pane
+    if (key.tab) {
+      dispatch({ type: 'TOGGLE_FOCUS' });
+      return;
+    }
+
     if (input === ' ') {
       dispatch({ type: 'TOGGLE_FOLLOW' });
       return;
     }
 
+    // Handle navigation based on focused pane
+    if (currentState.focusedPane === 'details') {
+      // Detail pane scrolling
+      if (key.upArrow || input === 'k') {
+        dispatch({ type: 'SCROLL_DETAIL', payload: -1 });
+        return;
+      }
+      if (key.downArrow || input === 'j') {
+        dispatch({ type: 'SCROLL_DETAIL', payload: 1 });
+        return;
+      }
+      if (key.pageUp) {
+        dispatch({ type: 'SCROLL_DETAIL', payload: -10 });
+        return;
+      }
+      if (key.pageDown) {
+        dispatch({ type: 'SCROLL_DETAIL', payload: 10 });
+        return;
+      }
+      return;
+    }
+
+    // Logs pane navigation
     if (key.upArrow || input === 'k') {
-      const newOffset = Math.max(0, state.scrollOffset - 1);
-      dispatch({ type: 'SCROLL', payload: -1 });
-      dispatch({ type: 'SELECT_LOG', payload: newOffset });
+      // If no selection, start at bottom of visible area
+      const visibleBottom = Math.min(
+        currentState.scrollOffset + currentState.viewportHeight - 1,
+        logs.length - 1
+      );
+      const currentIndex = currentState.selectedLogIndex ?? visibleBottom;
+
+      // If this is the first selection, just select without moving
+      if (currentState.selectedLogIndex === null) {
+        dispatch({ type: 'SELECT_LOG', payload: currentIndex });
+        dispatch({ type: 'SET_FOLLOW', payload: false });
+        return;
+      }
+
+      const newIndex = Math.max(0, currentIndex - 1);
+      dispatch({ type: 'SELECT_LOG', payload: newIndex });
+      // Only scroll if selection goes above visible area
+      if (newIndex < currentState.scrollOffset) {
+        dispatch({ type: 'SCROLL', payload: -1 });
+      }
+      dispatch({ type: 'SET_FOLLOW', payload: false });
       return;
     }
 
     if (key.downArrow || input === 'j') {
-      const newOffset = state.scrollOffset + 1;
-      dispatch({ type: 'SCROLL', payload: 1 });
-      dispatch({ type: 'SELECT_LOG', payload: newOffset });
+      // If no selection, start at top of visible area
+      const currentIndex = currentState.selectedLogIndex ?? currentState.scrollOffset;
+
+      // If this is the first selection, just select without moving
+      if (currentState.selectedLogIndex === null) {
+        dispatch({ type: 'SELECT_LOG', payload: currentIndex });
+        dispatch({ type: 'SET_FOLLOW', payload: false });
+        return;
+      }
+
+      const maxIndex = logs.length - 1;
+      const newIndex = Math.min(maxIndex, currentIndex + 1);
+      dispatch({ type: 'SELECT_LOG', payload: newIndex });
+      // Only scroll if selection goes below visible area
+      const visibleEnd = currentState.scrollOffset + currentState.viewportHeight - 1;
+      if (newIndex > visibleEnd) {
+        dispatch({ type: 'SCROLL', payload: 1 });
+      }
+      dispatch({ type: 'SET_FOLLOW', payload: false });
       return;
     }
 
     if (key.pageUp) {
-      const newOffset = Math.max(0, state.scrollOffset - state.viewportHeight);
-      dispatch({ type: 'SCROLL', payload: -state.viewportHeight });
-      dispatch({ type: 'SELECT_LOG', payload: newOffset });
+      const currentIndex = currentState.selectedLogIndex ?? currentState.scrollOffset;
+      const newIndex = Math.max(0, currentIndex - currentState.viewportHeight);
+      dispatch({ type: 'SELECT_LOG', payload: newIndex });
+      // Scroll to keep selection visible
+      if (newIndex < currentState.scrollOffset) {
+        dispatch({ type: 'SCROLL', payload: newIndex - currentState.scrollOffset });
+      }
+      dispatch({ type: 'SET_FOLLOW', payload: false });
       return;
     }
 
     if (key.pageDown) {
-      const newOffset = state.scrollOffset + state.viewportHeight;
-      dispatch({ type: 'SCROLL', payload: state.viewportHeight });
-      dispatch({ type: 'SELECT_LOG', payload: newOffset });
+      const currentIndex = currentState.selectedLogIndex ?? currentState.scrollOffset;
+      const maxIndex = logs.length - 1;
+      const newIndex = Math.min(maxIndex, currentIndex + currentState.viewportHeight);
+      dispatch({ type: 'SELECT_LOG', payload: newIndex });
+      // Scroll to keep selection visible
+      const visibleEnd = currentState.scrollOffset + currentState.viewportHeight - 1;
+      if (newIndex > visibleEnd) {
+        dispatch({ type: 'SCROLL', payload: newIndex - visibleEnd });
+      }
+      dispatch({ type: 'SET_FOLLOW', payload: false });
       return;
     }
 
@@ -69,9 +153,9 @@ function KeyboardHandler() {
     }
 
     if (input === 'G') {
-      const bottomOffset = Math.max(0, state.logs.length - state.viewportHeight);
+      const lastIndex = logs.length - 1;
+      dispatch({ type: 'SELECT_LOG', payload: lastIndex });
       dispatch({ type: 'SCROLL_TO', payload: 'bottom' });
-      dispatch({ type: 'SELECT_LOG', payload: bottomOffset });
       return;
     }
 

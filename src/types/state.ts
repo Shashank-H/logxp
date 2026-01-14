@@ -6,6 +6,8 @@ export interface Filter {
   levelValue?: LogLevel;
 }
 
+export type FocusedPane = "logs" | "details";
+
 export interface LogViewerState {
   logs: LogEntry[];
   totalReceived: number;
@@ -29,6 +31,9 @@ export interface LogViewerState {
   isPaused: boolean;
 
   selectedLogIndex: number | null;
+
+  focusedPane: FocusedPane;
+  detailScrollOffset: number;
 }
 
 export type LogViewerAction =
@@ -50,4 +55,7 @@ export type LogViewerAction =
   | { type: "SET_SORT"; payload: "default" | "timestamp" | "level" }
   | { type: "SET_STREAMING"; payload: boolean }
   | { type: "TOGGLE_PAUSE" }
-  | { type: "SELECT_LOG"; payload: number | null };
+  | { type: "SELECT_LOG"; payload: number | null }
+  | { type: "TOGGLE_FOCUS" }
+  | { type: "SET_FOCUS"; payload: FocusedPane }
+  | { type: "SCROLL_DETAIL"; payload: number };

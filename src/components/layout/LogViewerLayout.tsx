@@ -23,7 +23,9 @@ export function LogViewerLayout({
 
   useEffect(() => {
     const height = stdout?.rows || 24;
-    const viewportHeight = Math.max(5, height - 6);
+    // Account for: header (3), status bar (3), log table border (2), table header (2), separator (1)
+    const reservedLines = 3 + 3 + 2 + 2 + 1;
+    const viewportHeight = Math.max(5, height - reservedLines);
     dispatch({ type: 'SET_VIEWPORT_HEIGHT', payload: viewportHeight });
   }, [stdout?.rows, dispatch]);
 
@@ -37,20 +39,30 @@ export function LogViewerLayout({
       : null;
 
   return (
-    <Box flexDirection="column" height="100%">
-      {/* Header with command info */}
-      {showCommand && (
-        <Box paddingX={1} borderStyle="single" borderColor="gray">
-          <Text color="gray">Running: </Text>
-          <Text color="cyan">{showCommand}</Text>
-          {isRunning && (
-            <Text color="green" bold>
-              {' '}
-              (active)
-            </Text>
+    <Box flexDirection="column" height="100%" overflow="hidden">
+      {/* LogXP Header */}
+      <Box
+        borderStyle="double"
+        borderColor="cyan"
+        paddingX={1}
+        justifyContent="space-between"
+      >
+        <Box>
+          <Text color="cyan" bold>LogXP</Text>
+          <Text color="gray"> - Rich CLI Log Navigator</Text>
+        </Box>
+        <Box>
+          {showCommand && (
+            <>
+              <Text color="gray">cmd: </Text>
+              <Text color="yellow">{showCommand}</Text>
+              {isRunning && (
+                <Text color="green" bold> [LIVE]</Text>
+              )}
+            </>
           )}
         </Box>
-      )}
+      </Box>
 
       {/* Piped mode warning */}
       {showPipedWarning && (
@@ -63,8 +75,15 @@ export function LogViewerLayout({
 
       {/* Main log display area - split layout */}
       <Box flexGrow={1} flexDirection="row" overflow="hidden">
-        {/* Left side: Table */}
-        <Box flexGrow={1} flexDirection="column">
+        {/* Left side: Table - takes remaining space */}
+        <Box
+          flexGrow={1}
+          flexShrink={1}
+          flexDirection="column"
+          overflow="hidden"
+          borderStyle={state.focusedPane === 'logs' ? 'double' : 'single'}
+          borderColor={state.focusedPane === 'logs' ? 'cyan' : 'gray'}
+        >
           <LogTable
             logs={visibleLogs}
             selectedIndex={state.selectedLogIndex}
@@ -73,8 +92,16 @@ export function LogViewerLayout({
           />
         </Box>
 
-        {/* Right side: Detail Sidebar */}
-        <LogDetailSidebar log={selectedLog} width={60} />
+        {/* Right side: Detail Sidebar - fixed width */}
+        <Box flexShrink={0} width={60}>
+          <LogDetailSidebar
+            log={selectedLog}
+            width={60}
+            isFocused={state.focusedPane === 'details'}
+            scrollOffset={state.detailScrollOffset}
+            viewportHeight={state.viewportHeight}
+          />
+        </Box>
       </Box>
 
       {/* Command bar slot */}

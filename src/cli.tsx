@@ -17,6 +17,31 @@ const isPiped = !process.stdin.isTTY;
 // 3. If interactive terminal and no command -> prompt mode (ask for command)
 const mode = commandArg ? 'command' : isPiped ? 'piped' : 'prompt';
 
+// Enter alternate screen buffer (like vim, nano, htop)
+// This hides the command prompt and previous terminal content
+if (!isPiped) {
+  process.stdout.write('\x1b[?1049h'); // Enter alternate screen buffer
+  process.stdout.write('\x1b[2J');     // Clear screen
+  process.stdout.write('\x1b[H');      // Move cursor to top-left
+}
+
+// Restore terminal on exit
+function cleanup() {
+  if (!isPiped) {
+    process.stdout.write('\x1b[?1049l'); // Exit alternate screen buffer
+  }
+}
+
+process.on('exit', cleanup);
+process.on('SIGINT', () => {
+  cleanup();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  cleanup();
+  process.exit(0);
+});
+
 function App() {
   if (mode === 'piped') {
     // Legacy piped mode - limited functionality
@@ -40,4 +65,4 @@ function App() {
   return <InteractivePrompt />;
 }
 
-render(<App />);
+render(<App />, { fullScreen: true });
