@@ -5,8 +5,50 @@ import { LogViewerView } from './views/LogViewerView';
 import { InteractivePrompt } from './views/InteractivePrompt';
 import { shellHistory } from './core/history';
 
+// Version from package.json
+const VERSION = '0.1.0';
+
 // Parse command line arguments
 const args = process.argv.slice(2);
+
+// Handle --version and --help flags
+if (args.includes('--version') || args.includes('-v')) {
+  console.log(`logxp ${VERSION}`);
+  process.exit(0);
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+logxp ${VERSION} - Rich CLI Log Navigator
+
+USAGE:
+  logxp [command]           Run command and view its logs
+  logxp                     Interactive mode (prompts for command)
+  command | logxp           Pipe logs into logxp
+
+OPTIONS:
+  -h, --help                Show this help message
+  -v, --version             Show version number
+
+EXAMPLES:
+  logxp "tail -f /var/log/app.log"
+  logxp "docker logs -f container"
+  logxp "npm run dev"
+  kubectl logs -f pod | logxp
+
+KEYBOARD SHORTCUTS (in viewer):
+  /         Open command palette
+  ?         Show help
+  q         Quit
+  ESC       Go back to home
+  j/k       Navigate up/down
+  Space     Toggle follow mode
+
+For more info: https://github.com/Shashank-H/logxp
+`);
+  process.exit(0);
+}
+
 const commandArg = args.join(' ').trim();
 
 // Save CLI command to history
