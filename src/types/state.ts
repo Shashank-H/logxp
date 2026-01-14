@@ -34,6 +34,7 @@ export interface LogViewerState {
 
   focusedPane: FocusedPane;
   detailScrollOffset: number;
+  showHelp: boolean;
 }
 
 export type LogViewerAction =
@@ -58,4 +59,6 @@ export type LogViewerAction =
   | { type: "SELECT_LOG"; payload: number | null }
   | { type: "TOGGLE_FOCUS" }
   | { type: "SET_FOCUS"; payload: FocusedPane }
-  | { type: "SCROLL_DETAIL"; payload: number };
+  | { type: "SCROLL_DETAIL"; payload: number }
+  | { type: "TOGGLE_HELP" }
+  | { type: "SET_HELP"; payload: boolean };

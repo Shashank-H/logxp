@@ -4,5 +4,6 @@ export {
   getCommand,
   getAllCommands,
   getCommandSuggestions,
+  type CommandSuggestion,
 } from './command-registry';
 export * from './handlers';

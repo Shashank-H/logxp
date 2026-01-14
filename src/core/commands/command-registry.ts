@@ -83,25 +83,50 @@ export function executeCommand(
   }
 }
 
-export function getCommandSuggestions(partial: string): string[] {
+export interface CommandSuggestion {
+  name: string;
+  description: string;
+  usage: string;
+  example: string;
+}
+
+export function getCommandSuggestions(partial: string): CommandSuggestion[] {
   const input = partial.toLowerCase().replace(/^\//, '');
 
   if (!input) {
-    return commands.map((c) => `/${c.name}`);
+    return commands.map((c) => ({
+      name: `/${c.name}`,
+      description: c.description,
+      usage: c.usage,
+      example: c.examples[0] || '',
+    }));
   }
 
-  const matches: string[] = [];
+  const matches: CommandSuggestion[] = [];
+  const seen = new Set<string>();
 
   for (const cmd of commands) {
-    if (cmd.name.startsWith(input)) {
-      matches.push(`/${cmd.name}`);
+    if (cmd.name.startsWith(input) && !seen.has(cmd.name)) {
+      seen.add(cmd.name);
+      matches.push({
+        name: `/${cmd.name}`,
+        description: cmd.description,
+        usage: cmd.usage,
+        example: cmd.examples[0] || '',
+      });
     }
     for (const alias of cmd.aliases) {
-      if (alias.startsWith(input)) {
-        matches.push(`/${alias}`);
+      if (alias.startsWith(input) && !seen.has(alias)) {
+        seen.add(alias);
+        matches.push({
+          name: `/${alias}`,
+          description: cmd.description,
+          usage: cmd.usage,
+          example: cmd.examples[0] || '',
+        });
       }
     }
   }
 
-  return [...new Set(matches)].slice(0, 5);
+  return matches.slice(0, 8);
 }

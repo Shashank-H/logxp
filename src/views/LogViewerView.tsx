@@ -2,6 +2,7 @@ import React, { useCallback, useRef } from 'react';
 import { useInput, useApp, useStdin, Box, Text } from 'ink';
 import { LogViewerLayout } from '../components/layout/LogViewerLayout';
 import { CommandBar } from '../components/command/CommandBar';
+import { HelpOverlay } from '../components/help/HelpOverlay';
 import { useLogViewer } from '../context/LogViewerContext';
 import { useLogStream } from '../hooks/useLogStream';
 import { useCommandStream } from '../hooks/useCommandStream';
@@ -26,10 +27,25 @@ function KeyboardHandler() {
     const currentState = stateRef.current;
     const logs = filteredLogsRef.current;
 
+    // Ctrl+H toggles help (works even in command mode)
+    if (key.ctrl && input === 'h') {
+      dispatch({ type: 'TOGGLE_HELP' });
+      return;
+    }
+
+    // When help is shown, only handle help-specific keys (handled in HelpOverlay)
+    if (currentState.showHelp) return;
+
     if (currentState.commandMode) return;
 
     if (input === 'q' || key.escape) {
       exit();
+      return;
+    }
+
+    // ? also opens help
+    if (input === '?') {
+      dispatch({ type: 'SET_HELP', payload: true });
       return;
     }
 
@@ -202,6 +218,10 @@ export function LogViewerView({ isPiped, command }: LogViewerViewProps) {
     dispatch({ type: 'SET_COMMAND_MODE', payload: false });
   }, [dispatch]);
 
+  const handleCloseHelp = useCallback(() => {
+    dispatch({ type: 'SET_HELP', payload: false });
+  }, [dispatch]);
+
   // Show error if command failed
   if (error && !isRunning && state.logs.length === 0) {
     return (
@@ -217,6 +237,16 @@ export function LogViewerView({ isPiped, command }: LogViewerViewProps) {
 
   // Show limited mode warning when raw mode is not available
   const showLimitedWarning = !isRawModeSupported && state.logs.length === 0;
+
+  // Show help overlay when active
+  if (state.showHelp) {
+    return (
+      <>
+        {isRawModeSupported && <KeyboardHandler />}
+        <HelpOverlay onClose={handleCloseHelp} />
+      </>
+    );
+  }
 
   return (
     <>

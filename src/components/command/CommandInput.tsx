@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { getCommandSuggestions } from '../../core/commands';
+import { getCommandSuggestions, type CommandSuggestion } from '../../core/commands';
 
 interface CommandInputProps {
   value: string;
@@ -15,25 +15,33 @@ export function CommandInput({
   onSubmit,
   onCancel,
 }: CommandInputProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
+  const [suggestions, setSuggestions] = useState<CommandSuggestion[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Use ref to always have current value in useInput callback
   const valueRef = useRef(value);
   valueRef.current = value;
+  const suggestionsRef = useRef(suggestions);
+  suggestionsRef.current = suggestions;
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
 
   useEffect(() => {
     if (value.startsWith('/')) {
       const newSuggestions = getCommandSuggestions(value);
       setSuggestions(newSuggestions);
-      setSelectedSuggestion(-1);
+      // Reset selection when suggestions change, but keep within bounds
+      setSelectedIndex(0);
     } else {
       setSuggestions([]);
+      setSelectedIndex(0);
     }
   }, [value]);
 
   useInput((input, key) => {
     const currentValue = valueRef.current;
+    const currentSuggestions = suggestionsRef.current;
+    const currentSelectedIndex = selectedIndexRef.current;
 
     if (key.escape) {
       onCancel();
@@ -41,22 +49,48 @@ export function CommandInput({
     }
 
     if (key.return) {
-      if (selectedSuggestion >= 0 && suggestions[selectedSuggestion]) {
-        const parts = currentValue.split(' ');
-        parts[0] = suggestions[selectedSuggestion];
-        onSubmit(parts.join(' '));
-      } else {
-        onSubmit(currentValue);
+      if (currentSuggestions.length > 0 && currentSelectedIndex >= 0) {
+        const selected = currentSuggestions[currentSelectedIndex];
+        if (selected) {
+          // If user just typed "/" or partial, use the selected command
+          const parts = currentValue.split(' ');
+          parts[0] = selected.name;
+          onSubmit(parts.join(' '));
+          return;
+        }
+      }
+      onSubmit(currentValue);
+      return;
+    }
+
+    // Arrow up - move selection up
+    if (key.upArrow) {
+      if (currentSuggestions.length > 0) {
+        const newIndex = currentSelectedIndex <= 0
+          ? currentSuggestions.length - 1
+          : currentSelectedIndex - 1;
+        setSelectedIndex(newIndex);
       }
       return;
     }
 
-    if (key.tab && suggestions.length > 0) {
-      const nextIndex = (selectedSuggestion + 1) % suggestions.length;
-      setSelectedSuggestion(nextIndex);
-      const parts = currentValue.split(' ');
-      parts[0] = suggestions[nextIndex];
-      onChange(parts.join(' '));
+    // Arrow down - move selection down
+    if (key.downArrow) {
+      if (currentSuggestions.length > 0) {
+        const newIndex = (currentSelectedIndex + 1) % currentSuggestions.length;
+        setSelectedIndex(newIndex);
+      }
+      return;
+    }
+
+    // Tab - autocomplete with selected suggestion
+    if (key.tab && currentSuggestions.length > 0) {
+      const selected = currentSuggestions[currentSelectedIndex];
+      if (selected) {
+        const parts = currentValue.split(' ');
+        parts[0] = selected.name;
+        onChange(parts.join(' '));
+      }
       return;
     }
 
@@ -70,29 +104,55 @@ export function CommandInput({
     }
   });
 
+  const selectedSuggestion = suggestions[selectedIndex];
+
   return (
     <Box flexDirection="column">
-      {suggestions.length > 0 && (
-        <Box paddingLeft={1}>
-          {suggestions.map((suggestion, index) => (
-            <Text
-              key={suggestion}
-              color={index === selectedSuggestion ? 'cyan' : 'gray'}
-              dimColor={index !== selectedSuggestion}
-            >
-              {suggestion}
-              {index < suggestions.length - 1 && '  '}
-            </Text>
-          ))}
-        </Box>
-      )}
+      {/* Command input line */}
       <Box>
         <Text color="cyan" bold>
-          Command:{' '}
+          :{' '}
         </Text>
         <Text color="white">{value}</Text>
         <Text color="cyan">▋</Text>
       </Box>
+
+      {/* Command suggestions dropdown */}
+      {suggestions.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+            {suggestions.map((suggestion, index) => (
+              <Box key={suggestion.name}>
+                <Text
+                  backgroundColor={index === selectedIndex ? 'cyan' : undefined}
+                  color={index === selectedIndex ? 'black' : 'white'}
+                >
+                  {suggestion.name.padEnd(16)}
+                </Text>
+                <Text color="gray" dimColor={index !== selectedIndex}>
+                  {' '}{suggestion.description}
+                </Text>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Help section for selected command */}
+          {selectedSuggestion && (
+            <Box flexDirection="column" marginTop={1} paddingX={1}>
+              <Box>
+                <Text color="yellow" bold>Usage: </Text>
+                <Text color="white">{selectedSuggestion.usage}</Text>
+              </Box>
+              {selectedSuggestion.example && (
+                <Box>
+                  <Text color="yellow" bold>Example: </Text>
+                  <Text color="green">{selectedSuggestion.example}</Text>
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

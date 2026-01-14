@@ -30,6 +30,7 @@ const INITIAL_STATE: LogViewerState = {
   selectedLogIndex: null,
   focusedPane: 'logs',
   detailScrollOffset: 0,
+  showHelp: false,
 };
 
 function logViewerReducer(
@@ -202,6 +203,12 @@ function logViewerReducer(
         ...state,
         detailScrollOffset: Math.max(0, state.detailScrollOffset + action.payload),
       };
+
+    case 'TOGGLE_HELP':
+      return { ...state, showHelp: !state.showHelp };
+
+    case 'SET_HELP':
+      return { ...state, showHelp: action.payload };
 
     default:
       return state;
