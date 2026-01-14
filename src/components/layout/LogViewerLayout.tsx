@@ -39,7 +39,7 @@ export function LogViewerLayout({
       : null;
 
   return (
-    <Box flexDirection="column" height="100%" overflow="hidden">
+    <Box flexDirection="column" height="100%" overflow="hidden" position="relative">
       {/* LogXP Header */}
       <Box
         borderStyle="double"
@@ -104,9 +104,6 @@ export function LogViewerLayout({
         </Box>
       </Box>
 
-      {/* Command bar slot */}
-      {children}
-
       {/* Status bar */}
       <StatusBar
         totalLogs={state.logs.length}
@@ -119,6 +116,9 @@ export function LogViewerLayout({
         currentMatchIndex={state.currentMatchIndex}
         isStreaming={isRunning || state.isStreaming}
       />
+
+      {/* Command bar overlay - positioned absolutely on top */}
+      {children}
     </Box>
   );
 }

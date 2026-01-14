@@ -59,22 +59,33 @@ export function CommandBar({
 
   return (
     <Box
-      flexDirection="column"
-      borderStyle="single"
-      borderColor="cyan"
-      paddingX={1}
+      position="absolute"
+      width="100%"
+      height="100%"
+      justifyContent="center"
+      alignItems="flex-start"
+      paddingTop={3}
     >
-      {message && (
-        <Text color={message.isError ? 'red' : 'green'}>{message.text}</Text>
-      )}
-      {isActive && !message && (
-        <CommandInput
-          value={input}
-          onChange={setInput}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
-      )}
+      <Box
+        width={80}
+        flexDirection="column"
+        borderStyle="single"
+        borderColor="cyan"
+        paddingX={1}
+        backgroundColor="black"
+      >
+        {message && (
+          <Text color={message.isError ? 'red' : 'green'}>{message.text}</Text>
+        )}
+        {isActive && !message && (
+          <CommandInput
+            value={input}
+            onChange={setInput}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
+        )}
+      </Box>
     </Box>
   );
 }
