@@ -12,7 +12,7 @@ set -e
 REPO="Shashank-H/logxp"
 BINARY_NAME="logxp"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases/latest"
-GITHUB_RELEASES="https://github.com/${REPO}/releases/download"
+GITHUB_RELEASES="https://github.com/${REPO}/releases"
 
 # Colors (disabled if not a terminal)
 if [ -t 1 ]; then
@@ -112,18 +112,23 @@ get_installed_version() {
   fi
 }
 
-# Get latest version from GitHub
+# Get latest version from GitHub Releases
 get_latest_version() {
   if command -v curl >/dev/null 2>&1; then
-    version=$(curl -fsSL "$GITHUB_API" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+    response=$(curl -fsSL "$GITHUB_API" 2>/dev/null)
   elif command -v wget >/dev/null 2>&1; then
-    version=$(wget -qO- "$GITHUB_API" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+    response=$(wget -qO- "$GITHUB_API" 2>/dev/null)
   else
     error "Neither curl nor wget found. Please install one of them."
   fi
 
+  version=$(echo "$response" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+
   if [ -z "$version" ]; then
-    error "Failed to fetch latest version from GitHub"
+    error "Failed to fetch latest version from GitHub Releases.
+
+Make sure there is at least one release at:
+${GITHUB_RELEASES}"
   fi
 
   echo "$version"
@@ -169,9 +174,9 @@ main() {
 
   # Detect system
   info "Detecting system..."
-  OS=$(detect_os)
-  ARCH=$(detect_arch)
-  success "OS: $OS, Arch: $ARCH"
+  # OS=$(detect_os)
+  # ARCH=$(detect_arch)
+  # success "OS: $OS, Arch: $ARCH"
 
   # Get versions
   info "Checking versions..."
@@ -198,13 +203,10 @@ main() {
   INSTALL_DIR=$(get_install_dir)
   INSTALL_PATH="${INSTALL_DIR}/${BINARY_NAME}"
 
-  # Build download URL
-  # Expected format: logxp-{os}-{arch}
-  ASSET_NAME="${BINARY_NAME}-${OS}-${ARCH}"
-  if [ "$OS" = "windows" ]; then
-    ASSET_NAME="${ASSET_NAME}.exe"
-  fi
-  DOWNLOAD_URL="${GITHUB_RELEASES}/${LATEST_VERSION}/${ASSET_NAME}"
+  # Build download URL from GitHub Releases
+  # Expected format: logxp
+  ASSET_NAME="${BINARY_NAME}"
+  DOWNLOAD_URL="${GITHUB_RELEASES}/download/${LATEST_VERSION}/${ASSET_NAME}"
 
   # Create temp directory
   TMP_DIR=$(mktemp -d)
@@ -213,11 +215,16 @@ main() {
 
   # Download
   info "Downloading ${ASSET_NAME}..."
+  info "URL: ${DOWNLOAD_URL}"
   if ! download "$DOWNLOAD_URL" "$TMP_FILE" 2>/dev/null; then
     error "Failed to download from: $DOWNLOAD_URL
 
-Make sure the release exists and includes binaries for your platform.
-You may need to build from source: https://github.com/${REPO}"
+Make sure the release ${LATEST_VERSION} exists and includes binary: ${ASSET_NAME}
+Check available releases at: ${GITHUB_RELEASES}
+
+Or build from source:
+  git clone https://github.com/${REPO}.git
+  cd logxp && bun install && bun run build"
   fi
   success "Downloaded successfully"
 
