@@ -2,28 +2,28 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { LogViewerProvider } from '../context/LogViewerContext';
 import { LogViewerView } from './LogViewerView';
+import { EnvView } from './EnvView';
 import { shellHistory } from '../core/history';
-import { parse as parseYaml } from 'yaml';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
-// Load app name art from yaml
-function loadAppNameArt(): string {
-  try {
-    const artPath = join(import.meta.dir, '../../art.yml');
-    const content = readFileSync(artPath, 'utf-8');
-    const parsed = parseYaml(content);
-    return parsed.name?.trim() || 'LogXP';
-  } catch {
-    return 'LogXP';
-  }
-}
+type View = 'home' | 'logs' | 'env';
 
-const APP_NAME = loadAppNameArt();
+// ASCII art inlined for bundled executable compatibility
+const APP_NAME = `█████                         █████ █████ ███████████
+░░███                         ░░███ ░░███ ░░███░░░░░███
+ ░███         ██████   ███████ ░░███ ███   ░███    ░███
+ ░███        ███░░███ ███░░███  ░░█████    ░██████████
+ ░███       ░███ ░███░███ ░███   ███░███   ░███░░░░░░
+ ░███      █░███ ░███░███ ░███  ███ ░░███  ░███
+ ███████████░░██████ ░░███████ █████ █████ █████
+░░░░░░░░░░░  ░░░░░░   ░░░░░███░░░░░ ░░░░░ ░░░░░
+                      ███ ░███
+                    ░░██████
+                      ░░░░░░`;
 
 export function InteractivePrompt() {
   const [command, setCommand] = useState('');
-  const [started, setStarted] = useState(false);
+  const [currentView, setCurrentView] = useState<View>('home');
+  const [previousView, setPreviousView] = useState<View>('home');
   const { exit } = useApp();
   const { stdout } = useStdout();
   const commandRef = useRef(command);
@@ -32,7 +32,7 @@ export function InteractivePrompt() {
   const termWidth = stdout?.columns || 120;
 
   useInput((input, key) => {
-    if (started) return;
+    if (currentView !== 'home') return;
 
     if (key.escape) {
       exit();
@@ -43,8 +43,15 @@ export function InteractivePrompt() {
       if (commandRef.current.trim()) {
         // Save to history before starting
         shellHistory.add(commandRef.current.trim());
-        setStarted(true);
+        setCurrentView('logs');
       }
+      return;
+    }
+
+    // Ctrl+E or Cmd+E to open environment variables view
+    if ((key.ctrl || key.meta) && input === 'e') {
+      setPreviousView('home');
+      setCurrentView('env');
       return;
     }
 
@@ -77,69 +84,94 @@ export function InteractivePrompt() {
   });
 
   const handleBack = useCallback(() => {
-    setStarted(false);
+    setCurrentView('home');
     setCommand('');
   }, []);
 
-  if (started) {
+  const handleShowEnv = useCallback(() => {
+    setPreviousView('logs');
+    setCurrentView('env');
+  }, []);
+
+  const handleEnvBack = useCallback(() => {
+    setCurrentView(previousView);
+  }, [previousView]);
+
+  if (currentView === 'logs') {
     return (
       <LogViewerProvider>
-        <LogViewerView isPiped={false} command={command} onBack={handleBack} />
+        <LogViewerView isPiped={false} command={command} onBack={handleBack} onShowEnv={handleShowEnv} />
       </LogViewerProvider>
     );
   }
 
+  if (currentView === 'env') {
+    return <EnvView onBack={handleEnvBack} />;
+  }
+
   const inputWidth = Math.min(80, termWidth - 4);
   const termHeight = stdout?.rows || 24;
+  const cwd = process.cwd();
 
   return (
     <Box
       width={termWidth}
       height={termHeight}
       flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
     >
-      {/* App Name Art */}
-      <Box flexDirection="column" alignItems="center">
-        <Text color="cyan" bold>{APP_NAME}</Text>
-      </Box>
-
-      {/* Tagline */}
-      <Box marginTop={1}>
-        <Text color="gray">Rich CLI Log Navigator</Text>
-      </Box>
-
-      {/* Input Section */}
+      {/* Main content - centered */}
       <Box
         flexDirection="column"
-        marginTop={2}
-        width={inputWidth}
-        borderStyle="round"
-        borderColor="cyan"
-        paddingX={2}
-        paddingY={1}
+        alignItems="center"
+        justifyContent="center"
+        flexGrow={1}
       >
-        <Text color="white">Enter a command that outputs logs:</Text>
+        {/* App Name Art */}
+        <Box flexDirection="column" alignItems="center">
+          <Text color="cyan" bold>{APP_NAME}</Text>
+        </Box>
+
+        {/* Tagline */}
         <Box marginTop={1}>
-          <Text color="green" bold>$ </Text>
-          <Text color="white">{command}</Text>
-          <Text color="cyan" bold>▋</Text>
+          <Text color="gray">Rich CLI Log Navigator</Text>
+        </Box>
+
+        {/* Input Section */}
+        <Box
+          flexDirection="column"
+          marginTop={2}
+          width={inputWidth}
+          borderStyle="round"
+          borderColor="cyan"
+          paddingX={2}
+          paddingY={1}
+        >
+          <Text color="white">Enter a command that outputs logs:</Text>
+          <Box marginTop={1}>
+            <Text color="green" bold>$ </Text>
+            <Text color="white">{command}</Text>
+            <Text color="cyan" bold>▋</Text>
+          </Box>
+        </Box>
+
+        {/* Examples */}
+        <Box flexDirection="column" alignItems="center" marginTop={1}>
+          <Text color="gray" dimColor>
+            Examples: <Text color="white">tail -f /var/log/app.log</Text> | <Text color="white">docker logs -f container</Text> | <Text color="white">npm run dev</Text>
+          </Text>
+        </Box>
+
+        {/* Controls */}
+        <Box marginTop={1}>
+          <Text color="gray" dimColor>
+            <Text color="green">Enter</Text> Start  |  <Text color="yellow">↑↓</Text> History  |  <Text color="cyan">Ctrl+E</Text> Env Vars  |  <Text color="red">Esc</Text> Quit
+          </Text>
         </Box>
       </Box>
 
-      {/* Examples */}
-      <Box flexDirection="column" alignItems="center" marginTop={1}>
-        <Text color="gray" dimColor>
-          Examples: <Text color="white">tail -f /var/log/app.log</Text> | <Text color="white">docker logs -f container</Text> | <Text color="white">npm run dev</Text>
-        </Text>
-      </Box>
-
-      {/* Controls */}
-      <Box marginTop={1}>
-        <Text color="gray" dimColor>
-          <Text color="green">Enter</Text> Start  |  <Text color="yellow">↑↓</Text> History  |  <Text color="red">Esc</Text> Quit
-        </Text>
+      {/* Footer - bottom left cwd */}
+      <Box paddingX={1}>
+        <Text color="gray" dimColor>{cwd}</Text>
       </Box>
     </Box>
   );

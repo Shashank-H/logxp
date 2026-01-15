@@ -165,23 +165,34 @@ function logViewerReducer(
 
     case 'TOGGLE_FOLLOW': {
       const newFollowMode = !state.followMode;
+      // When entering follow mode, immediately jump to the bottom
+      const scrollOffset = newFollowMode
+        ? Math.max(0, state.totalLogs - state.viewportHeight)
+        : state.scrollOffset;
       return {
         ...state,
         followMode: newFollowMode,
+        scrollOffset,
         isPaused: false,
         // Clear selection when entering follow mode
         selectedLogIndex: newFollowMode ? null : state.selectedLogIndex,
       };
     }
 
-    case 'SET_FOLLOW':
+    case 'SET_FOLLOW': {
+      // When entering follow mode, immediately jump to the bottom
+      const scrollOffset = action.payload
+        ? Math.max(0, state.totalLogs - state.viewportHeight)
+        : state.scrollOffset;
       return {
         ...state,
         followMode: action.payload,
+        scrollOffset,
         isPaused: false,
         // Clear selection when entering follow mode
         selectedLogIndex: action.payload ? null : state.selectedLogIndex,
       };
+    }
 
     case 'SET_COMMAND_MODE':
       return {

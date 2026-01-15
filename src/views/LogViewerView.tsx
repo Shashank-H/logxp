@@ -11,14 +11,16 @@ interface LogViewerViewProps {
   isPiped: boolean;
   command: string | null;
   onBack?: () => void;
+  onShowEnv?: () => void;
 }
 
 interface KeyboardHandlerProps {
   onBack?: () => void;
+  onShowEnv?: () => void;
 }
 
 // Separate component for keyboard input to avoid useInput when raw mode not supported
-function KeyboardHandler({ onBack }: KeyboardHandlerProps) {
+function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
   const { state, dispatch, filteredCount } = useLogViewer();
   const { exit } = useApp();
 
@@ -29,6 +31,8 @@ function KeyboardHandler({ onBack }: KeyboardHandlerProps) {
   filteredCountRef.current = filteredCount;
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
+  const onShowEnvRef = useRef(onShowEnv);
+  onShowEnvRef.current = onShowEnv;
 
   useInput((input, key) => {
     const currentState = stateRef.current;
@@ -37,6 +41,14 @@ function KeyboardHandler({ onBack }: KeyboardHandlerProps) {
     // Ctrl+H toggles help (works even in command mode)
     if (key.ctrl && input === 'h') {
       dispatch({ type: 'TOGGLE_HELP' });
+      return;
+    }
+
+    // Ctrl+E or Cmd+E opens environment variables view
+    if ((key.ctrl || key.meta) && input === 'e') {
+      if (onShowEnvRef.current) {
+        onShowEnvRef.current();
+      }
       return;
     }
 
@@ -211,7 +223,7 @@ function KeyboardHandler({ onBack }: KeyboardHandlerProps) {
   return null;
 }
 
-export function LogViewerView({ isPiped, command, onBack }: LogViewerViewProps) {
+export function LogViewerView({ isPiped, command, onBack, onShowEnv }: LogViewerViewProps) {
   const { state, dispatch, addLogs } = useLogViewer();
   const { isRawModeSupported } = useStdin();
 
@@ -264,7 +276,7 @@ export function LogViewerView({ isPiped, command, onBack }: LogViewerViewProps) 
   if (state.showHelp) {
     return (
       <>
-        {isRawModeSupported && <KeyboardHandler onBack={onBack} />}
+        {isRawModeSupported && <KeyboardHandler onBack={onBack} onShowEnv={onShowEnv} />}
         <HelpOverlay onClose={handleCloseHelp} />
       </>
     );
@@ -273,7 +285,7 @@ export function LogViewerView({ isPiped, command, onBack }: LogViewerViewProps) 
   return (
     <>
       {/* Only render keyboard handler when raw mode is supported */}
-      {isRawModeSupported && <KeyboardHandler onBack={onBack} />}
+      {isRawModeSupported && <KeyboardHandler onBack={onBack} onShowEnv={onShowEnv} />}
 
       <LogViewerLayout
         showCommand={command}
