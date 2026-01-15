@@ -69,9 +69,12 @@ export function useCommandStream({
         }
 
         // Spawn the process through shell to support pipes, &&, etc.
-        const proc = Bun.spawn(['sh', '-c', command], {
+        // Use bash login shell (-l) to source profile files and inherit env vars
+        const shell = process.env.SHELL || '/bin/bash';
+        const proc = Bun.spawn([shell, '-l', '-c', command], {
           stdout: 'pipe',
           stderr: 'pipe',
+          env: process.env,
         });
 
         procRef.current = proc;

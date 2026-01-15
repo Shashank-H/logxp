@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+import { loadEnvFile } from './core/env-loader';
+
+// Load .env from cwd first (before any other code uses process.env)
+loadEnvFile();
+
 import { render, Box, Text } from 'ink';
 import { LogViewerProvider } from './context/LogViewerContext';
 import { LogViewerView } from './views/LogViewerView';
