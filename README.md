@@ -24,6 +24,7 @@ A rich CLI log navigator built with Bun and Ink. View, search, and filter logs f
 - **Keyboard-driven UI** - Vim-style navigation (j/k, g/G, etc.)
 - **Command history** - Recall previous commands with up/down arrows
 - **Detail panel** - View full log details in a side panel
+- **Environment variables viewer** - Inspect env vars with Ctrl+E, loads `.env` files
 - **SQLite-backed storage** - Efficient handling of large log volumes
 - **Cross-platform** - Works on Linux, macOS, and Windows
 
@@ -95,16 +96,17 @@ kubectl logs -f pod | logxp
 | `Page Down` | Scroll down one page |
 | `Tab` | Switch focus between logs and details pane |
 
-### Commands
+### Commands & Views
 
 | Key | Action |
 |-----|--------|
 | `/` | Open command palette |
 | `?` | Show help |
 | `Space` | Toggle follow mode |
-| `Esc` | Go back to home / Clear search |
-| `q` | Quit application |
+| `Ctrl+E` | Open environment variables viewer |
 | `Ctrl+H` | Toggle help screen |
+| `Esc` | Go back to home / Close overlay |
+| `q` | Quit application |
 
 ### Search Navigation
 
@@ -167,6 +169,39 @@ LogXP automatically detects and parses JSON logs, extracting fields like `level`
 logxp "docker logs -f my-app"
 # Then use: /filter level:error
 ```
+
+## User Guide
+
+### Getting Started
+
+1. **Launch LogXP** - Run `logxp` in your terminal
+2. **Enter a command** - Type the command you want to monitor (e.g., `docker logs -f my-app`)
+3. **Navigate logs** - Use `j`/`k` to move up/down, `g`/`G` to jump to top/bottom
+4. **Search** - Press `/` and type `search <term>` to find specific logs
+5. **Filter** - Use `/filter level:error` to show only errors
+
+### Working with the Log Viewer
+
+**Follow Mode**: Press `Space` to toggle follow mode. When enabled, the view automatically scrolls to show new logs as they arrive.
+
+**Detail Panel**: Press `Tab` to switch focus to the detail panel on the right. This shows the full content of the selected log entry, including all JSON fields.
+
+**Search Navigation**: After searching, use `n` to jump to the next match and `N` or `p` to go to the previous match. Matches are highlighted in the log list.
+
+### Environment Variables Viewer
+
+Press `Ctrl+E` to open the environment variables viewer. This displays:
+- All current shell environment variables
+- Variables loaded from `.env` file in the current directory
+
+Use `j`/`k` to navigate and `Esc` to return to the main view.
+
+### Tips & Tricks
+
+- **Large log volumes**: LogXP uses SQLite for storage, so it handles large volumes efficiently without consuming excessive memory
+- **JSON logs**: If your application outputs JSON logs, LogXP automatically parses and formats them for easy reading
+- **Command history**: Use `↑`/`↓` arrows on the home screen to recall previous commands
+- **Quick exit**: Press `Esc` to go back to the home screen, then `q` to quit
 
 ## Configuration
 
