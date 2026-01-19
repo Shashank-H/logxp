@@ -72,6 +72,7 @@ export function LogViewerLayout({
         borderColor="cyan"
         paddingX={1}
         justifyContent="space-between"
+        flexShrink={0}
       >
         <Box>
           <Text color="cyan" bold>LogXP</Text>
@@ -101,33 +102,40 @@ export function LogViewerLayout({
 
       {/* Main log display area - split layout */}
       <Box flexGrow={1} flexDirection="row" overflow="hidden">
-        {/* Left side: Table - takes remaining space */}
-        <Box
-          flexGrow={1}
-          flexShrink={1}
-          flexDirection="column"
-          overflow="hidden"
-          borderStyle={state.focusedPane === 'logs' ? 'double' : 'single'}
-          borderColor={state.focusedPane === 'logs' ? 'cyan' : 'gray'}
-        >
-          <LogTable
-            logs={visibleLogs}
-            selectedIndex={state.selectedLogIndex}
-            scrollOffset={state.scrollOffset}
-            onSelect={handleSelect}
-          />
-        </Box>
+        {/* Left side: Table - hidden in fullscreen mode */}
+        {state.sidebarMode !== 'fullscreen' && (
+          <Box
+            flexGrow={1}
+            flexShrink={1}
+            flexDirection="column"
+            overflow="hidden"
+            borderStyle={state.focusedPane === 'logs' ? 'double' : 'single'}
+            borderColor={state.focusedPane === 'logs' ? 'cyan' : 'gray'}
+          >
+            <LogTable
+              logs={visibleLogs}
+              selectedIndex={state.selectedLogIndex}
+              scrollOffset={state.scrollOffset}
+              onSelect={handleSelect}
+              searchTerm={state.searchTerm}
+              searchMatches={state.searchMatches}
+              currentMatchIndex={state.currentMatchIndex}
+              sidebarMode={state.sidebarMode}
+            />
+          </Box>
+        )}
 
-        {/* Right side: Detail Sidebar - fixed width */}
-        <Box flexShrink={0} width={60}>
+        {/* Right side: Detail Sidebar - hidden when sidebarMode is 'hidden', full-width in fullscreen */}
+        {state.sidebarMode !== 'hidden' && (
           <LogDetailSidebar
             log={selectedLog}
-            width={60}
+            width={state.sidebarMode === 'fullscreen' ? undefined : 60}
             isFocused={state.focusedPane === 'details'}
             scrollOffset={state.detailScrollOffset}
             viewportHeight={state.viewportHeight}
+            isFullscreen={state.sidebarMode === 'fullscreen'}
           />
-        </Box>
+        )}
       </Box>
 
       {/* Status bar */}
@@ -141,6 +149,8 @@ export function LogViewerLayout({
         searchMatches={state.searchMatches}
         currentMatchIndex={state.currentMatchIndex}
         isStreaming={isRunning || state.isStreaming}
+        sidebarMode={state.sidebarMode}
+        copyNotification={state.copyNotification}
       />
 
       {/* Command bar overlay - positioned absolutely on top */}

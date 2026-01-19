@@ -3,7 +3,7 @@ import type { CommandDefinition } from "../../../types/command";
 export const searchCommand: CommandDefinition = {
   name: "search",
   aliases: ["s", "find"],
-  description: "Search for text in logs",
+  description: "Highlight matching text in logs (shows all logs)",
   usage: "/search <term>",
   examples: ["/search error", '/search "user login"'],
   execute: (args, context) => {
@@ -14,17 +14,8 @@ export const searchCommand: CommandDefinition = {
     const term = args.join(" ");
     context.dispatch({ type: "SET_SEARCH", payload: term });
 
-    const state = context.getState();
-    const matchCount = state.searchMatches.length;
-
-    if (matchCount === 0) {
-      return `No matches found for "${term}"`;
-    }
-
-    context.dispatch({ type: "NAVIGATE_SEARCH", payload: "next" });
-    return `Found ${matchCount} match${
-      matchCount === 1 ? "" : "es"
-    } for "${term}"`;
+    // Matches are computed asynchronously, user navigates with ,/. or n/p
+    return `Searching for "${term}" - use ,/. or n/p to navigate matches`;
   },
 };
 

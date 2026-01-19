@@ -3,7 +3,9 @@ import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { LogViewerProvider } from '../context/LogViewerContext';
 import { LogViewerView } from './LogViewerView';
 import { EnvView } from './EnvView';
+import { HelpOverlay } from '../components/help/HelpOverlay';
 import { shellHistory } from '../core/history';
+import packageJson from '../../package.json';
 
 type View = 'home' | 'logs' | 'env';
 
@@ -24,6 +26,7 @@ export function InteractivePrompt() {
   const [command, setCommand] = useState('');
   const [currentView, setCurrentView] = useState<View>('home');
   const [previousView, setPreviousView] = useState<View>('home');
+  const [showHelp, setShowHelp] = useState(false);
   const { exit } = useApp();
   const { stdout } = useStdout();
   const commandRef = useRef(command);
@@ -32,7 +35,21 @@ export function InteractivePrompt() {
   const termWidth = stdout?.columns || 120;
 
   useInput((input, key) => {
+    // Handle help overlay close
+    if (showHelp) {
+      if (key.escape || input === 'q' || (key.ctrl && input === 'h') || input === '?') {
+        setShowHelp(false);
+      }
+      return;
+    }
+
     if (currentView !== 'home') return;
+
+    // Show help with ? or Ctrl+H
+    if (input === '?' || (key.ctrl && input === 'h')) {
+      setShowHelp(true);
+      return;
+    }
 
     if (key.escape) {
       exit();
@@ -169,9 +186,10 @@ export function InteractivePrompt() {
         </Box>
       </Box>
 
-      {/* Footer - bottom left cwd */}
-      <Box paddingX={1}>
+      {/* Footer - cwd on left, version on right */}
+      <Box paddingX={1} justifyContent="space-between">
         <Text color="gray" dimColor>{cwd}</Text>
+        <Text color="gray" dimColor>v{packageJson.version}</Text>
       </Box>
     </Box>
   );

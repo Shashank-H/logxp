@@ -7,6 +7,7 @@ export interface Filter {
 }
 
 export type FocusedPane = "logs" | "details";
+export type SidebarMode = "hidden" | "visible" | "fullscreen";
 
 export interface LogViewerState {
   logs: LogEntry[];
@@ -36,6 +37,8 @@ export interface LogViewerState {
   focusedPane: FocusedPane;
   detailScrollOffset: number;
   showHelp: boolean;
+  sidebarMode: SidebarMode;
+  copyNotification: string | null;
 }
 
 export type LogViewerAction =
@@ -44,6 +47,7 @@ export type LogViewerAction =
   | { type: "ADD_FILTER"; payload: Filter }
   | { type: "CLEAR_FILTERS" }
   | { type: "SET_SEARCH"; payload: string | null }
+  | { type: "SET_SEARCH_MATCHES"; payload: number[] }
   | { type: "NAVIGATE_SEARCH"; payload: "next" | "prev" }
   | { type: "CLEAR_SEARCH" }
   | { type: "SCROLL"; payload: number }
@@ -62,4 +66,8 @@ export type LogViewerAction =
   | { type: "SET_FOCUS"; payload: FocusedPane }
   | { type: "SCROLL_DETAIL"; payload: number }
   | { type: "TOGGLE_HELP" }
-  | { type: "SET_HELP"; payload: boolean };
+  | { type: "SET_HELP"; payload: boolean }
+  | { type: "TOGGLE_SIDEBAR" }
+  | { type: "SET_SIDEBAR_MODE"; payload: SidebarMode }
+  | { type: "TOGGLE_FULLSCREEN_DETAIL" }
+  | { type: "SET_COPY_NOTIFICATION"; payload: string | null };

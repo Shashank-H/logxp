@@ -33,6 +33,8 @@ const INITIAL_STATE: LogViewerState = {
   focusedPane: 'logs',
   detailScrollOffset: 0,
   showHelp: false,
+  sidebarMode: 'hidden',
+  copyNotification: null,
 };
 
 function logViewerReducer(
@@ -74,32 +76,28 @@ function logViewerReducer(
 
     case 'SET_SEARCH': {
       if (action.payload === null) {
-        // Remove any existing search filters
-        const newFilters = state.activeFilters.filter(f => f.type !== 'search');
         return {
           ...state,
           searchTerm: null,
           searchMatches: [],
           currentMatchIndex: -1,
-          activeFilters: newFilters,
-          scrollOffset: 0,
-          selectedLogIndex: null,
         };
       }
-      
-      // Remove any existing search filters and add new one
-      const newFilters = state.activeFilters.filter(f => f.type !== 'search');
-      newFilters.push({ type: 'search', value: action.payload });
-      
+
+      // Search only sets searchTerm for highlighting - does NOT filter logs
       return {
         ...state,
         searchTerm: action.payload,
         currentMatchIndex: -1,
-        activeFilters: newFilters,
-        scrollOffset: 0,
-        // Auto-select first filtered log
-        selectedLogIndex: 0,
+        searchMatches: [], // Will be populated by SET_SEARCH_MATCHES
         followMode: false,
+      };
+    }
+
+    case 'SET_SEARCH_MATCHES': {
+      return {
+        ...state,
+        searchMatches: action.payload,
       };
     }
 
@@ -120,6 +118,7 @@ function logViewerReducer(
       return {
         ...state,
         currentMatchIndex: newIndex,
+        selectedLogIndex: matchLogIndex, // Select the matched log
         scrollOffset: Math.max(
           0,
           matchLogIndex - Math.floor(state.viewportHeight / 2)
@@ -129,17 +128,12 @@ function logViewerReducer(
     }
 
     case 'CLEAR_SEARCH': {
-      // Remove any search filters
-      const newFilters = state.activeFilters.filter(f => f.type !== 'search');
+      // Clear search state (search doesn't modify activeFilters)
       return {
         ...state,
         searchTerm: null,
         searchMatches: [],
         currentMatchIndex: -1,
-        activeFilters: newFilters,
-        scrollOffset: 0,
-        // Reset selection to first log
-        selectedLogIndex: 0,
       };
     }
 
@@ -226,6 +220,8 @@ function logViewerReducer(
       return { ...state, selectedLogIndex: action.payload, detailScrollOffset: 0 };
 
     case 'TOGGLE_FOCUS':
+      // Only toggle focus if sidebar is visible
+      if (state.sidebarMode === 'hidden') return state;
       return {
         ...state,
         focusedPane: state.focusedPane === 'logs' ? 'details' : 'logs',
@@ -245,6 +241,45 @@ function logViewerReducer(
 
     case 'SET_HELP':
       return { ...state, showHelp: action.payload };
+
+    case 'TOGGLE_SIDEBAR': {
+      const newMode = state.sidebarMode === 'hidden' ? 'visible' : 'hidden';
+      return {
+        ...state,
+        sidebarMode: newMode,
+        // Auto-switch focus to logs when hiding sidebar
+        focusedPane: newMode === 'hidden' ? 'logs' : state.focusedPane,
+      };
+    }
+
+    case 'SET_SIDEBAR_MODE': {
+      const modeChanged = state.sidebarMode !== action.payload;
+      return {
+        ...state,
+        sidebarMode: action.payload,
+        // Auto-switch focus to logs when hiding sidebar
+        focusedPane: action.payload === 'hidden' ? 'logs' : state.focusedPane,
+        // Reset scroll offset when mode changes (content width changes)
+        detailScrollOffset: modeChanged ? 0 : state.detailScrollOffset,
+      };
+    }
+
+    case 'TOGGLE_FULLSCREEN_DETAIL': {
+      // No-op when sidebar is hidden
+      if (state.sidebarMode === 'hidden') return state;
+      const newMode = state.sidebarMode === 'fullscreen' ? 'visible' : 'fullscreen';
+      return {
+        ...state,
+        sidebarMode: newMode,
+        // Always focus details in fullscreen mode
+        focusedPane: newMode === 'fullscreen' ? 'details' : state.focusedPane,
+        // Reset scroll offset when switching modes (content width changes)
+        detailScrollOffset: 0,
+      };
+    }
+
+    case 'SET_COPY_NOTIFICATION':
+      return { ...state, copyNotification: action.payload };
 
     default:
       return state;
@@ -334,21 +369,23 @@ export function LogViewerProvider({
     return logs[0] || null;
   }, [state.activeFilters, state.sortBy]);
 
-  // Only compute search matches when search term changes (not on every scroll)
+  // Compute search matches - indices where search term matches
+  // If filters are active, returns indices within filtered dataset
   const searchMatchesComputed = useMemo(() => {
-    if (!state.searchTerm) return [];
+    const db = dbRef.current;
+    if (!db || !state.searchTerm) return [];
 
-    // Since search is now a filter, all filtered logs are matches
-    // Return array of indices [0, 1, 2, ..., filteredCount-1]
-    return Array.from({ length: filteredCount }, (_, i) => i);
-  }, [state.searchTerm, filteredCount]);
+    // Search within the current dataset (respecting active filters)
+    return db.searchLogs(
+      state.searchTerm,
+      state.activeFilters.length > 0 ? state.activeFilters : undefined
+    );
+  }, [state.searchTerm, state.totalLogs, state.activeFilters]);
 
-  const stateWithMatches = useMemo(() => {
-    return {
-      ...state,
-      searchMatches: searchMatchesComputed,
-    };
-  }, [state, searchMatchesComputed]);
+  // Sync computed search matches to state so NAVIGATE_SEARCH can use them
+  useEffect(() => {
+    dispatch({ type: 'SET_SEARCH_MATCHES', payload: searchMatchesComputed });
+  }, [searchMatchesComputed]);
 
   const visibleLogs = useMemo(() => {
     const db = dbRef.current;
@@ -367,7 +404,7 @@ export function LogViewerProvider({
 
   const value = useMemo(
     () => ({
-      state: stateWithMatches,
+      state,
       dispatch,
       filteredCount,
       visibleLogs,
@@ -375,7 +412,7 @@ export function LogViewerProvider({
       addLogs,
       clearLogs,
     }),
-    [stateWithMatches, filteredCount, visibleLogs, getLogByIndex, addLogs, clearLogs]
+    [state, filteredCount, visibleLogs, getLogByIndex, addLogs, clearLogs]
   );
 
   return (

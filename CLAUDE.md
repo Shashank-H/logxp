@@ -45,8 +45,8 @@ Commands are defined in `src/core/commands/handlers/` and registered in `src/cor
 | `k` / `Up` | Move up |
 | `g` | Go to top |
 | `G` | Go to bottom |
-| `n` | Next search match |
-| `N` / `p` | Previous search match |
+| `n` / `.` | Next search match |
+| `N` / `p` / `,` | Previous search match |
 | `Page Up/Down` | Scroll by page |
 
 ## Limitations

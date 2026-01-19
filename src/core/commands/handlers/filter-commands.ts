@@ -6,7 +6,7 @@ const VALID_LEVELS: LogLevel[] = ['error', 'warn', 'info', 'debug', 'trace'];
 export const filterCommand: CommandDefinition = {
   name: 'filter',
   aliases: ['f'],
-  description: 'Filter logs by keyword or level',
+  description: 'Show only logs matching keyword or level (hides others)',
   usage: '/filter <keyword> or /filter level:<level>',
   examples: [
     '/filter error',

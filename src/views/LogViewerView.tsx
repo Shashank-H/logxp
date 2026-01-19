@@ -6,6 +6,7 @@ import { HelpOverlay } from '../components/help/HelpOverlay';
 import { useLogViewer } from '../context/LogViewerContext';
 import { useLogStream } from '../hooks/useLogStream';
 import { useCommandStream } from '../hooks/useCommandStream';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface LogViewerViewProps {
   isPiped: boolean;
@@ -21,8 +22,10 @@ interface KeyboardHandlerProps {
 
 // Separate component for keyboard input to avoid useInput when raw mode not supported
 function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
-  const { state, dispatch, filteredCount } = useLogViewer();
+  const { state, dispatch, filteredCount, getLogByIndex } = useLogViewer();
   const { exit } = useApp();
+  const getLogByIndexRef = useRef(getLogByIndex);
+  getLogByIndexRef.current = getLogByIndex;
 
   // Use refs to avoid stale closure issues in useInput
   const stateRef = useRef(state);
@@ -38,8 +41,15 @@ function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
     const currentState = stateRef.current;
     const logCount = filteredCountRef.current;
 
-    // Ctrl+H toggles help (works even in command mode)
-    if (key.ctrl && input === 'h') {
+    // When help is shown, only allow closing it
+    if (currentState.showHelp) return;
+
+    // When in command mode, let CommandInput handle all keys (including Ctrl+H)
+    if (currentState.commandMode) return;
+
+    // Ctrl+H toggles help (only when not in command mode)
+    // Note: Don't trigger on backspace (some terminals send Ctrl+H as backspace)
+    if (key.ctrl && input === 'h' && !key.backspace) {
       dispatch({ type: 'TOGGLE_HELP' });
       return;
     }
@@ -52,13 +62,19 @@ function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
       return;
     }
 
-    // When help is shown, only handle help-specific keys (handled in HelpOverlay)
-    if (currentState.showHelp) return;
+    // Ctrl+B toggles sidebar visibility
+    if (key.ctrl && input === 'b') {
+      dispatch({ type: 'TOGGLE_SIDEBAR' });
+      return;
+    }
 
-    if (currentState.commandMode) return;
-
-    // ESC clears search if active, otherwise goes back to home
+    // ESC: exit fullscreen first, then clear search, then go back
     if (key.escape) {
+      // Exit fullscreen mode if active
+      if (currentState.sidebarMode === 'fullscreen') {
+        dispatch({ type: 'SET_SIDEBAR_MODE', payload: 'visible' });
+        return;
+      }
       if (currentState.searchTerm) {
         dispatch({ type: 'CLEAR_SEARCH' });
         return;
@@ -83,6 +99,38 @@ function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
       return;
     }
 
+    // 'd' toggles sidebar visibility
+    if (input === 'd') {
+      dispatch({ type: 'TOGGLE_SIDEBAR' });
+      return;
+    }
+
+    // 'f' toggles fullscreen detail view
+    if (input === 'f') {
+      dispatch({ type: 'TOGGLE_FULLSCREEN_DETAIL' });
+      return;
+    }
+
+    // 'c' copies the selected log to clipboard
+    if (input === 'c') {
+      if (currentState.selectedLogIndex !== null) {
+        const log = getLogByIndexRef.current(currentState.selectedLogIndex);
+        if (log) {
+          copyToClipboard(log.raw).then((success) => {
+            dispatch({
+              type: 'SET_COPY_NOTIFICATION',
+              payload: success ? 'Copied!' : 'Copy failed',
+            });
+            // Clear notification after 2 seconds
+            setTimeout(() => {
+              dispatch({ type: 'SET_COPY_NOTIFICATION', payload: null });
+            }, 2000);
+          });
+        }
+      }
+      return;
+    }
+
     if (input === '/') {
       dispatch({ type: 'SET_COMMAND_MODE', payload: true });
       return;
@@ -96,6 +144,19 @@ function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
 
     if (input === ' ') {
       dispatch({ type: 'TOGGLE_FOLLOW' });
+      return;
+    }
+
+    // Enter key opens sidebar and focuses it (when a log is selected)
+    if (key.return) {
+      if (currentState.selectedLogIndex !== null) {
+        // Show sidebar if hidden
+        if (currentState.sidebarMode === 'hidden') {
+          dispatch({ type: 'SET_SIDEBAR_MODE', payload: 'visible' });
+        }
+        // Focus the details pane
+        dispatch({ type: 'SET_FOCUS', payload: 'details' });
+      }
       return;
     }
 
@@ -218,6 +279,17 @@ function KeyboardHandler({ onBack, onShowEnv }: KeyboardHandlerProps) {
       dispatch({ type: 'NAVIGATE_SEARCH', payload: 'prev' });
       return;
     }
+
+    // Comma and period for search navigation (< and > on most keyboards)
+    if (input === ',') {
+      dispatch({ type: 'NAVIGATE_SEARCH', payload: 'prev' });
+      return;
+    }
+
+    if (input === '.') {
+      dispatch({ type: 'NAVIGATE_SEARCH', payload: 'next' });
+      return;
+    }
   });
 
   return null;
@@ -256,6 +328,10 @@ export function LogViewerView({ isPiped, command, onBack, onShowEnv }: LogViewer
     dispatch({ type: 'SET_HELP', payload: false });
   }, [dispatch]);
 
+  const handleToggleHelp = useCallback(() => {
+    dispatch({ type: 'TOGGLE_HELP' });
+  }, [dispatch]);
+
   // Show error if command failed
   if (error && !isRunning && state.totalLogs === 0) {
     return (
@@ -285,6 +361,7 @@ export function LogViewerView({ isPiped, command, onBack, onShowEnv }: LogViewer
   return (
     <>
       {/* Only render keyboard handler when raw mode is supported */}
+      {/* useInput isActive option disables it when in command mode to prevent two hooks processing keystrokes */}
       {isRawModeSupported && <KeyboardHandler onBack={onBack} onShowEnv={onShowEnv} />}
 
       <LogViewerLayout
@@ -298,6 +375,7 @@ export function LogViewerView({ isPiped, command, onBack, onShowEnv }: LogViewer
             dispatch={dispatch}
             getState={getState}
             onClose={handleCloseCommand}
+            onToggleHelp={handleToggleHelp}
           />
         )}
       </LogViewerLayout>

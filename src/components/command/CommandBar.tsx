@@ -9,6 +9,7 @@ interface CommandBarProps {
   dispatch: React.Dispatch<LogViewerAction>;
   getState: () => LogViewerState;
   onClose: () => void;
+  onToggleHelp?: () => void;
 }
 
 export function CommandBar({
@@ -16,6 +17,7 @@ export function CommandBar({
   dispatch,
   getState,
   onClose,
+  onToggleHelp,
 }: CommandBarProps) {
   const [input, setInput] = useState('/');
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(
@@ -83,6 +85,7 @@ export function CommandBar({
             onChange={setInput}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
+            onToggleHelp={onToggleHelp}
           />
         )}
       </Box>
