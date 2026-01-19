@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { getCommandSuggestions, type CommandSuggestion } from '../../core/commands';
 
@@ -7,6 +7,7 @@ interface CommandInputProps {
   onChange: (value: string) => void;
   onSubmit: (value: string) => void;
   onCancel: () => void;
+  onToggleHelp?: () => void;
 }
 
 export function CommandInput({
@@ -14,34 +15,47 @@ export function CommandInput({
   onChange,
   onSubmit,
   onCancel,
+  onToggleHelp,
 }: CommandInputProps) {
-  const [suggestions, setSuggestions] = useState<CommandSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Compute suggestions directly from value - no state needed
+  const suggestions = useMemo(() => {
+    if (!value.startsWith('/')) return [];
+    return getCommandSuggestions(value);
+  }, [value]);
+
+  // Reset selection when suggestions change
+  const prevSuggestionsLengthRef = useRef(suggestions.length);
+  if (prevSuggestionsLengthRef.current !== suggestions.length) {
+    prevSuggestionsLengthRef.current = suggestions.length;
+    // Can't call setState during render, but we can adjust the index
+  }
+
+  // Ensure selectedIndex is within bounds
+  const safeSelectedIndex = Math.min(selectedIndex, Math.max(0, suggestions.length - 1));
 
   // Use ref to always have current value in useInput callback
   const valueRef = useRef(value);
   valueRef.current = value;
   const suggestionsRef = useRef(suggestions);
   suggestionsRef.current = suggestions;
-  const selectedIndexRef = useRef(selectedIndex);
-  selectedIndexRef.current = selectedIndex;
-
-  useEffect(() => {
-    if (value.startsWith('/')) {
-      const newSuggestions = getCommandSuggestions(value);
-      setSuggestions(newSuggestions);
-      // Reset selection when suggestions change, but keep within bounds
-      setSelectedIndex(0);
-    } else {
-      setSuggestions([]);
-      setSelectedIndex(0);
-    }
-  }, [value]);
+  const selectedIndexRef = useRef(safeSelectedIndex);
+  selectedIndexRef.current = safeSelectedIndex;
 
   useInput((input, key) => {
     const currentValue = valueRef.current;
     const currentSuggestions = suggestionsRef.current;
     const currentSelectedIndex = selectedIndexRef.current;
+
+    // Ctrl+H toggles help (works in command mode too)
+    // Note: Don't trigger on backspace (some terminals send Ctrl+H as backspace)
+    if (key.ctrl && input === 'h' && !key.backspace) {
+      if (onToggleHelp) {
+        onToggleHelp();
+      }
+      return;
+    }
 
     if (key.escape) {
       onCancel();
@@ -104,7 +118,7 @@ export function CommandInput({
     }
   });
 
-  const selectedSuggestion = suggestions[selectedIndex];
+  const selectedSuggestion = suggestions[safeSelectedIndex];
 
   return (
     <Box flexDirection="column">
@@ -124,12 +138,12 @@ export function CommandInput({
             {suggestions.map((suggestion, index) => (
               <Box key={suggestion.name}>
                 <Text
-                  backgroundColor={index === selectedIndex ? 'cyan' : undefined}
-                  color={index === selectedIndex ? 'black' : 'white'}
+                  backgroundColor={index === safeSelectedIndex ? 'cyan' : undefined}
+                  color={index === safeSelectedIndex ? 'black' : 'white'}
                 >
                   {suggestion.name.padEnd(16)}
                 </Text>
-                <Text color="gray" dimColor={index !== selectedIndex}>
+                <Text color="gray" dimColor={index !== safeSelectedIndex}>
                   {' '}{suggestion.description}
                 </Text>
               </Box>

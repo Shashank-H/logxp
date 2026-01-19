@@ -125,27 +125,31 @@ export class LogDatabase {
 
   /**
    * Search logs and return matching indices
+   * If filters provided, searches within filtered dataset and returns indices in that set
+   * If no filters, searches all logs and returns indices in full dataset
    */
   searchLogs(term: string, filters?: Filter[]): number[] {
     const lowerTerm = term.toLowerCase();
-    const { query: baseQuery, params: baseParams } = this.buildQuery(
+
+    // Build query - if filters provided, only search within filtered logs
+    // Exclude 'search' type filters since search itself shouldn't filter
+    const nonSearchFilters = filters?.filter(f => f.type !== 'search');
+    const { query, params } = this.buildQuery(
       "id, raw, message",
-      filters
+      nonSearchFilters && nonSearchFilters.length > 0 ? nonSearchFilters : undefined
     );
 
-    // We need to filter in-memory since SQLite LIKE is case-insensitive by default
-    // but we want to search both raw and message fields
-    const rows = this.db.query(baseQuery).all(...baseParams) as any[];
+    const rows = this.db.query(query).all(...params) as any[];
 
-    const matchingIds: number[] = [];
-    rows.forEach((row, index) => {
+    const matchingIndices: number[] = [];
+    rows.forEach((row, idx) => {
       const searchText = (row.raw + (row.message || "")).toLowerCase();
       if (searchText.includes(lowerTerm)) {
-        matchingIds.push(index);
+        matchingIndices.push(idx); // idx is position in the (possibly filtered) dataset
       }
     });
 
-    return matchingIds;
+    return matchingIndices;
   }
 
   /**

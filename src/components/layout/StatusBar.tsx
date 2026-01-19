@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { Filter } from '../../types/state';
+import type { Filter, SidebarMode } from '../../types/state';
 
 interface StatusBarProps {
   totalLogs: number;
@@ -12,6 +12,8 @@ interface StatusBarProps {
   searchMatches: number[];
   currentMatchIndex: number;
   isStreaming: boolean;
+  sidebarMode: SidebarMode;
+  copyNotification?: string | null;
 }
 
 export function StatusBar({
@@ -24,6 +26,8 @@ export function StatusBar({
   searchMatches,
   currentMatchIndex,
   isStreaming,
+  sidebarMode,
+  copyNotification,
 }: StatusBarProps) {
   const hasFilters = activeFilters.length > 0;
   const hasSearch = searchTerm !== null;
@@ -48,6 +52,7 @@ export function StatusBar({
       borderColor="gray"
       paddingX={1}
       justifyContent="space-between"
+      flexShrink={0}
     >
       <Box>
         {hasFilters && (
@@ -57,7 +62,11 @@ export function StatusBar({
         )}
         {hasSearch && (
           <Text color="cyan">
-            [FILTER: "{searchTerm}" ({filteredCount} {filteredCount === 1 ? 'match' : 'matches'}) - Press ESC to clear]{' '}
+            [SEARCH: "{searchTerm}" ({searchMatches.length === 0 ? 'no matches' :
+              currentMatchIndex >= 0
+                ? `${currentMatchIndex + 1}/${searchMatches.length}`
+                : `${searchMatches.length} ${searchMatches.length === 1 ? 'match' : 'matches'}`
+            }) - ,/. to navigate, ESC to clear]{' '}
           </Text>
         )}
         <Text color="white">
@@ -67,6 +76,14 @@ export function StatusBar({
       </Box>
 
       <Box>
+        {copyNotification && (
+          <>
+            <Text color={copyNotification === 'Copied!' ? 'green' : 'red'} bold>
+              {copyNotification}
+            </Text>
+            <Text> | </Text>
+          </>
+        )}
         <Text color="gray">
           Line {scrollOffset + 1} | {getScrollPosition()}
         </Text>
@@ -85,6 +102,14 @@ export function StatusBar({
             <Text> | </Text>
             <Text color="blue">STREAMING</Text>
           </>
+        )}
+        <Text> | </Text>
+        {sidebarMode === 'hidden' ? (
+          <Text color="gray" dimColor>PANEL:OFF</Text>
+        ) : sidebarMode === 'fullscreen' ? (
+          <Text color="magenta" bold>FULLSCREEN</Text>
+        ) : (
+          <Text color="cyan">PANEL</Text>
         )}
       </Box>
     </Box>
