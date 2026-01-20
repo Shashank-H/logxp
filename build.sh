@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     --all)
-      TARGETS="linux-x64 linux-arm64 darwin-x64 darwin-arm64"
+      TARGETS="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"
       shift
       ;;
     *)
@@ -64,6 +64,11 @@ mkdir -p "$BUILD_DIR"
 build_target() {
   local target="$1"
   local outfile="${BUILD_DIR}/logxp-${target}"
+
+  # Add .exe extension for Windows
+  if [[ "$target" == windows-* ]]; then
+    outfile="${outfile}.exe"
+  fi
 
   echo -e "${CYAN}==>${NC} Building for ${BOLD}${target}${NC}..."
 
