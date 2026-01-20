@@ -174,9 +174,9 @@ main() {
 
   # Detect system
   info "Detecting system..."
-  # OS=$(detect_os)
-  # ARCH=$(detect_arch)
-  # success "OS: $OS, Arch: $ARCH"
+  OS=$(detect_os)
+  ARCH=$(detect_arch)
+  success "OS: $OS, Arch: $ARCH"
 
   # Get versions
   info "Checking versions..."
@@ -204,8 +204,12 @@ main() {
   INSTALL_PATH="${INSTALL_DIR}/${BINARY_NAME}"
 
   # Build download URL from GitHub Releases
-  # Expected format: logxp
-  ASSET_NAME="${BINARY_NAME}"
+  # Expected format: logxp-{os}-{arch} (e.g., logxp-darwin-arm64, logxp-linux-x64)
+  if [ "$OS" = "windows" ]; then
+    ASSET_NAME="${BINARY_NAME}-${OS}-${ARCH}.exe"
+  else
+    ASSET_NAME="${BINARY_NAME}-${OS}-${ARCH}"
+  fi
   DOWNLOAD_URL="${GITHUB_RELEASES}/download/${LATEST_VERSION}/${ASSET_NAME}"
 
   # Create temp directory
@@ -221,6 +225,9 @@ main() {
 
 Make sure the release ${LATEST_VERSION} exists and includes binary: ${ASSET_NAME}
 Check available releases at: ${GITHUB_RELEASES}
+
+Expected binary format: logxp-{os}-{arch}[.exe]
+  Examples: logxp-linux-x64, logxp-linux-arm64, logxp-darwin-x64, logxp-darwin-arm64, logxp-windows-x64.exe
 
 Or build from source:
   git clone https://github.com/${REPO}.git
